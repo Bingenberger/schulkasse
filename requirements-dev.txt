@@ -1,0 +1,9 @@
+# Test dependencies (pinned), in addition to requirements.txt
+-r requirements.txt
+pytest==9.1.1
+iniconfig==2.3.0
+pluggy==1.6.0
+Pygments==2.21.0
+# QR self test (F6.6) and PDF page checks
+zxing-cpp==3.1.1
+pypdf==6.18.0

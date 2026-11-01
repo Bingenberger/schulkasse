@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "macros.html" import betrag, badge %}
+{% block title %}Kassenbuch{% endblock %}
+{% block content %}
+<h1>Kassenbuch</h1>
+{% if not kb %}
+<p class="hinweis">Es ist noch kein Konto angelegt.</p>
+{% else %}
+<form class="filter" method="get">
+  <div class="feld"><label for="konto">Konto</label>
+    <select id="konto" name="konto">{% for k in konten %}<option value="{{ k.id }}" {% if k.id == konto_id %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}</select></div>
+  <div class="feld"><label for="von">von</label><input id="von" type="date" name="von" value="{{ von }}"></div>
+  <div class="feld"><label for="bis">bis</label><input id="bis" type="date" name="bis" value="{{ bis }}"></div>
+  <button type="submit">Anzeigen</button>
+  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='csv') }}">CSV</a>
+  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='pdf') }}">PDF</a>
+</form>
+<dl class="kennzahlen">
+  <div><dt>Anfangssaldo</dt><dd>{{ kb.anfangssaldo|euro }}</dd></div>
+  <div><dt>Eingänge</dt><dd>{{ kb.eingaenge|euro }}</dd></div>
+  <div><dt>Ausgänge</dt><dd>{{ kb.ausgaenge|euro }}</dd></div>
+  <div><dt>Endsaldo</dt><dd>{{ kb.endsaldo|euro }}</dd></div>
+</dl>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th>Zuordnung</th><th class="r">Betrag</th></tr></thead>
+  {% for z in kb.zeilen %}{% set u = z.umsatz %}
+  <tr><td><a href="{{ url_for('umsaetze.detail', umsatz_id=u.id) }}">{{ u.buchungsdatum|datum }}</a></td><td>{{ u.gegen_name or '' }}</td>
+    <td class="zweck">{{ u.verwendungszweck or '' }}</td>
+    <td>{% if z.ignoriert_grund %}{{ badge('ignoriert') }} {{ z.ignoriert_grund }}{% else %}
+      {% for t in z.teile %}<span class="mono">{{ t.kurzcode }}</span>{% if t.zahlcode %} {{ t.zahlcode }}{% endif %}: {{ t.betrag_cent|euro }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+      {% if u.buchungsdatum < kb.beginn %}<span class="badge">vor Beginn (im Anfangsbestand)</span>
+      {% elif u.zuordnungsstatus in ('offen','teilweise') %} {{ badge(u.zuordnungsstatus) }}{% endif %}{% endif %}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td></tr>
+  {% else %}<tr><td colspan="5" class="leise">Keine gebuchten Umsätze im Zeitraum.</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

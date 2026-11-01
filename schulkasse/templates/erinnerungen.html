@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge %}
+{% block title %}Erinnerungsliste{% endblock %}
+{% block content %}
+<h1>Erinnerungsliste</h1>
+<p class="leise">Überfällige offene Posten zum Stichtag, gruppiert nach Klasse. Kinder mit BuT-/Härtefallstatus und erlassene
+  Posten werden hier grundsätzlich nicht aufgeführt.</p>
+<form class="filter" method="get">
+  <div class="feld"><label for="stichtag">Überfällig vor dem</label><input id="stichtag" type="date" name="stichtag" value="{{ stichtag }}"></div>
+  <div class="feld"><label for="projekt">Projekt</label>
+    <select id="projekt" name="projekt"><option value="">alle</option>
+      {% for p in projekte %}<option value="{{ p.id }}" {% if projekt_id == p.id %}selected{% endif %}>{{ p.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <button type="submit">Anzeigen</button>
+  <a class="knopf zweit" href="{{ url_for('auswertungen.erinnerungen', stichtag=stichtag, projekt=projekt_id or '', format='csv') }}">CSV</a>
+</form>
+{% for klasse, rows in gruppen.items() %}
+<h2>Klasse {{ klasse }} <small>({{ rows|length }})</small></h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Name</th><th>Projekt</th><th>Zahlcode</th><th class="r">Offen</th><th>Fällig</th><th>Status</th><th>Letzter Brief</th></tr></thead>
+  {% for r in rows %}
+  <tr><td>{{ r.nachname }}, {{ r.vorname }}</td><td>{{ r.projekt }}</td><td class="mono">{{ r.zahlcode }}</td>
+    <td class="r">{{ (r.sollbetrag_cent - r.bezahlt)|euro }}</td><td>{{ r.faellig_am|datum }}</td><td>{{ badge(r.status) }}</td><td>{{ r.letzter_brief_am|zeit }}</td></tr>
+  {% endfor %}
+</table></div>
+{% else %}
+<p class="hinweis info">Keine überfälligen Posten zum Stichtag.</p>
+{% endfor %}
+
+{% if gruppen and projekt_id %}
+<h2>Erinnerungsschreiben</h2>
+<form method="post" action="{{ url_for('auswertungen.erinnerungsbriefe') }}" class="formular karte breit">
+  {{ csrf() }}<input type="hidden" name="projekt" value="{{ projekt_id }}"><input type="hidden" name="stichtag" value="{{ stichtag }}">
+  <div class="feld"><label for="text">Brieftext</label>
+    <textarea id="text" name="text" rows="7">Liebe Eltern,
+
+vielleicht ist es im Alltag untergegangen: Für das oben genannte Vorhaben ist bei uns noch kein vollständiger Zahlungseingang verbucht. Bitte überweisen Sie den offenen Betrag mit dem QR-Code oder den Angaben unten.</textarea></div>
+  <div><button type="submit">Erinnerungen als PDF erzeugen</button></div>
+</form>
+{% elif gruppen %}
+<p class="leise">Für Erinnerungsschreiben bitte oben ein Projekt wählen.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Schuljahreswechsel{% endblock %}
+{% block content %}
+<h1>Schuljahreswechsel</h1>
+<p class="leise">Alle aktiven Kinder rücken eine Jahrgangsstufe auf (z. B. 3b → 4b). Kinder der Klassen 4 werden als Abgänger
+  inaktiv gesetzt. Das Zielschuljahr wird danach aktiv. Neue Klassen 1 werden anschließend per CSV importiert.</p>
+<form method="get" class="filter">
+  <div class="feld"><label for="von">Von Schuljahr</label>
+    <select id="von" name="von">{% for s in schuljahre %}<option value="{{ s.id }}" {% if von == s.id or (not von and s.aktiv) %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}</select></div>
+  <div class="feld"><label for="nach">Nach Schuljahr</label>
+    <select id="nach" name="nach">{% for s in schuljahre %}<option value="{{ s.id }}" {% if nach == s.id %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}</select></div>
+  <button type="submit" class="zweit">Vorschau</button>
+  <a href="{{ url_for('stammdaten.schuljahre') }}">Zielschuljahr anlegen</a>
+</form>
+{% if vorschau %}
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Klasse</th><th class="r">Kinder</th><th>Aktion</th></tr></thead>
+  {% for z in vorschau %}
+  <tr><td>{{ z.klasse.bezeichnung }}</td><td class="r">{{ z.klasse.anzahl }}</td>
+    <td>{% if z.aktion == 'aufruecken' %}→ {{ z.ziel }}{% elif z.aktion == 'abgang' %}Abgang (inaktiv){% else %}<strong>keine Jahrgangsstufe erkennbar – Kinder bleiben unverändert</strong>{% endif %}</td></tr>
+  {% endfor %}
+</table></div>
+<form method="post" class="karte">
+  {{ csrf() }}<input type="hidden" name="von" value="{{ von }}"><input type="hidden" name="nach" value="{{ nach }}">
+  <label class="check"><input type="checkbox" name="bestaetigt" value="1" required> Ich habe die Vorschau geprüft.</label>
+  <p><button type="submit">Schuljahreswechsel ausführen</button></p>
+</form>
+{% endif %}
+{% endblock %}

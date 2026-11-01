@@ -1,0 +1,66 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Monatsbericht {{ v.monatsname }} {{ v.jahr }}{% endblock %}
+{% block orientierung %}landscape{% endblock %}
+{% block body %}
+<h1>Monatsbericht {{ v.monatsname }} {{ v.jahr }}</h1>
+<div class="meta">Zeitraum {{ v.von|datum }} – {{ v.bis|datum }} · erzeugt am {{ erzeugt|zeit }} von {{ user.anzeigename }}
+  · Beiträge sind mit Zahlcode ausgewiesen, ohne Namen von Kindern.</div>
+
+{% for k in v.konten %}
+<h2>{{ k.konto.bezeichnung }} · IBAN {{ k.konto.iban|iban }}</h2>
+<div class="kz">
+  <div>Stand {{ v.vortag|datum }}<b>{{ k.kb.anfangssaldo|euro }}</b></div>
+  <div>Eingänge<b>{{ k.kb.eingaenge|euro }}</b></div>
+  <div>Ausgänge<b>{{ k.kb.ausgaenge|euro }}</b></div>
+  <div>Stand {{ v.bis|datum }}<b>{{ k.kb.endsaldo|euro }}</b></div>
+  <div>auf Projekte verteilt<b>{{ k.verteilt|euro }}</b></div>
+  <div>noch nicht verteilt<b>{{ k.nicht_verteilt|euro }}</b></div>
+</div>
+<table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th>Projekt</th><th class="r">Betrag</th></tr></thead>
+  <tbody>
+    <tr><td></td><td colspan="3"><b>Stand {{ v.vortag|datum }}</b></td><td class="r"><b>{{ k.kb.anfangssaldo|euro }}</b></td></tr>
+    {% for z in k.kb.zeilen %}{% set u = z.umsatz %}
+    <tr><td>{{ u.buchungsdatum|datum }}</td><td>{{ u.gegen_name or '' }}</td><td>{{ u.verwendungszweck or '' }}</td>
+      <td>{% if z.ignoriert_grund %}ignoriert: {{ z.ignoriert_grund }}
+        {% elif k.kb.beginn and u.buchungsdatum < k.kb.beginn %}vor Beginn der Kontoführung (im Anfangsbestand)
+        {% else %}{% for t in z.projekte %}{{ t.kurzcode }} {{ t.projekt }}{% if t.zahlcode %} ({{ t.zahlcode }}){% endif %}: {{ t.betrag_cent|euro }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+          {% if u.zuordnungsstatus in ('offen', 'teilweise') %}<i>(noch nicht vollständig zugeordnet)</i>{% endif %}{% endif %}</td>
+      <td class="r">{{ u.betrag_cent|euro }}</td></tr>
+    {% else %}<tr><td></td><td colspan="4">Keine Buchungen in diesem Monat.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td></td><td colspan="3">Stand {{ v.bis|datum }}</td><td class="r">{{ k.kb.endsaldo|euro }}</td></tr>
+  </tfoot>
+</table>
+{% endfor %}
+
+<h2>Verteilung auf die Projekte</h2>
+<table>
+  <thead><tr><th>Projekt</th><th>Code</th><th class="r">Stand {{ v.vortag|datum }}</th>{% if v.mit_anfangsbestand %}<th class="r">Anfangsbestand</th>{% endif %}<th class="r">Eingänge</th>
+    <th class="r">Ausgänge</th><th class="r">Umbuchungen</th><th class="r">Stand {{ v.bis|datum }}</th>
+    {% if v.konten|length > 1 %}{% for k in v.konten %}<th class="r">davon {{ k.konto.bezeichnung }}</th>{% endfor %}{% endif %}</tr></thead>
+  <tbody>
+  {% for p in v.projekte %}
+  <tr><td>{{ p.bezeichnung }}{% if p.status != 'offen' %} (abgeschlossen){% endif %}</td><td>{{ p.kurzcode }}</td>
+    <td class="r">{{ p.stand_anfang|euro }}</td>
+    {% if v.mit_anfangsbestand %}<td class="r">{{ p.anfangsbestand|euro if p.anfangsbestand else '' }}</td>{% endif %}
+    <td class="r">{{ p.eingang|euro if p.eingang else '' }}</td>
+    <td class="r">{{ p.ausgang|euro if p.ausgang else '' }}</td><td class="r">{{ p.umbuchung|euro if p.umbuchung else '' }}</td>
+    <td class="r">{{ p.stand_ende|euro }}</td>
+    {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ p.je_konto.get(k.konto.id)|euro if p.je_konto.get(k.konto.id) else '' }}</td>{% endfor %}{% endif %}</tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="2"><b>Summe Projekte</b></td><td class="r">{{ v.summen.stand_anfang|euro }}</td>{% if v.mit_anfangsbestand %}<td class="r">{{ v.summen.anfangsbestand|euro }}</td>{% endif %}
+      <td class="r">{{ v.summen.eingang|euro }}</td><td class="r">{{ v.summen.ausgang|euro }}</td>
+      <td class="r">{{ v.summen.umbuchung|euro }}</td><td class="r">{{ v.summen.stand_ende|euro }}</td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ v.je_konto_summen[k.konto.id]|euro }}</td>{% endfor %}{% endif %}</tr>
+    <tr><td colspan="{{ 7 if v.mit_anfangsbestand else 6 }}">Kontostände am {{ v.bis|datum }}</td><td class="r">{{ v.kontostand_gesamt|euro }}</td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ k.kb.endsaldo|euro }}</td>{% endfor %}{% endif %}</tr>
+    <tr><td colspan="{{ 7 if v.mit_anfangsbestand else 6 }}">noch nicht auf Projekte verteilt</td><td class="r">{{ v.nicht_verteilt_gesamt|euro }}</td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ k.nicht_verteilt|euro }}</td>{% endfor %}{% endif %}</tr>
+  </tfoot>
+</table>
+{% if v.ohne_konto %}<p>{{ v.ohne_konto|euro }} stammen aus Umbuchungen ohne hinterlegtes Konto.</p>{% endif %}
+{% endblock %}

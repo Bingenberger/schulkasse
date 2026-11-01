@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Monatsbericht {{ v.monatsname }} {{ v.jahr }}{% endblock %}
+{% from "macros.html" import betrag %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Monatsbericht {{ v.monatsname }} {{ v.jahr }}</h1>
+  <div class="aktionen">
+    <a class="knopf" href="{{ url_for('auswertungen.monatsbericht_view', monat=monat, konto=konto_id, format='pdf') }}">Bericht als PDF</a>
+    <a class="knopf zweit" href="{{ url_for('auswertungen.monatsbericht_view', monat=monat, konto=konto_id, format='csv') }}">CSV Buchungen</a>
+    <a class="knopf zweit" href="{{ url_for('auswertungen.monatsbericht_view', monat=monat, konto=konto_id, format='csv-projekte') }}">CSV Projekte</a>
+  </div>
+</div>
+<p class="leise">Für den Kontoinhaber: alle Buchungen des Monats mit dem Projekt, zu dem sie gehören, und der
+  Monats-Endstand auf die Projekte verteilt. Namen von Kindern enthält der Bericht nicht – Beiträge erscheinen
+  nur mit ihrem Zahlcode.</p>
+
+<form class="filter" method="get">
+  <div class="feld"><label for="f-monat">Monat</label><input id="f-monat" type="month" name="monat" value="{{ monat }}"></div>
+  <div class="feld"><label for="f-konto">Konto</label>
+    <select id="f-konto" name="konto"><option value="">alle Konten</option>
+      {% for k in konten %}<option value="{{ k.id }}" {% if konto_id == k.id %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <button type="submit">Anzeigen</button>
+</form>
+
+{% for k in v.konten %}
+<h2>{{ k.konto.bezeichnung }}</h2>
+<dl class="kennzahlen">
+  <div><dt>Stand {{ v.vortag|datum }}</dt><dd>{{ k.kb.anfangssaldo|euro }}</dd></div>
+  <div><dt>Eingänge</dt><dd>{{ k.kb.eingaenge|euro }}</dd></div>
+  <div><dt>Ausgänge</dt><dd>{{ k.kb.ausgaenge|euro }}</dd></div>
+  <div><dt>Stand {{ v.bis|datum }}</dt><dd>{{ k.kb.endsaldo|euro }}</dd></div>
+  <div><dt>auf Projekte verteilt</dt><dd>{{ k.verteilt|euro }}</dd></div>
+  <div><dt>noch nicht verteilt</dt><dd>{{ k.nicht_verteilt|euro }}</dd></div>
+</dl>
+{% if k.offen_anzahl %}<p class="hinweis">{{ k.offen_anzahl }} Umsätze auf diesem Konto sind noch nicht
+  (vollständig) zugeordnet. Der Bericht weist sie einzeln aus.</p>{% endif %}
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th>Projekt</th><th class="r">Betrag</th></tr></thead>
+  <tbody>
+  {% for z in k.kb.zeilen %}{% set u = z.umsatz %}
+  <tr><td>{{ u.buchungsdatum|datum }}</td><td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+    <td>{% if z.ignoriert_grund %}<em>ignoriert: {{ z.ignoriert_grund }}</em>
+      {% elif k.kb.beginn and u.buchungsdatum < k.kb.beginn %}<em>vor Beginn der Kontoführung (im Anfangsbestand)</em>
+      {% else %}{% for t in z.projekte %}<span class="mono">{{ t.kurzcode }}</span> {{ t.projekt }}{% if t.zahlcode %} <small class="mono">{{ t.zahlcode }}</small>{% endif %}: {{ t.betrag_cent|euro }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+        {% if u.zuordnungsstatus in ('offen', 'teilweise') %}<em>(noch nicht vollständig zugeordnet)</em>{% endif %}{% endif %}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td></tr>
+  {% else %}<tr><td colspan="5" class="leise">Keine Buchungen in diesem Monat.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% endfor %}
+
+<h2>Projekte im Monat</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Code</th><th class="r">Stand {{ v.vortag|datum }}</th>{% if v.mit_anfangsbestand %}<th class="r">Anfangsbestand</th>{% endif %}<th class="r">Eingänge</th>
+    <th class="r">Ausgänge</th><th class="r">Umbuchungen</th><th class="r">Stand {{ v.bis|datum }}</th>
+    {% if v.konten|length > 1 %}{% for k in v.konten %}<th class="r">davon {{ k.konto.bezeichnung }}</th>{% endfor %}{% endif %}</tr></thead>
+  <tbody>
+  {% for p in v.projekte %}
+  <tr><td><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a>
+      {% if p.status != 'offen' %} <small class="leise">(abgeschlossen)</small>{% endif %}</td>
+    <td class="mono">{{ p.kurzcode }}</td>
+    <td class="r">{{ p.stand_anfang|euro }}</td>
+    {% if v.mit_anfangsbestand %}<td class="r">{{ p.anfangsbestand|euro if p.anfangsbestand else '–' }}</td>{% endif %}
+    <td class="r">{{ p.eingang|euro if p.eingang else '–' }}</td>
+    <td class="r">{{ p.ausgang|euro if p.ausgang else '–' }}</td>
+    <td class="r">{{ p.umbuchung|euro if p.umbuchung else '–' }}</td>
+    <td class="r"><strong>{{ p.stand_ende|euro }}</strong></td>
+    {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ p.je_konto.get(k.konto.id)|euro if p.je_konto.get(k.konto.id) else '–' }}</td>{% endfor %}{% endif %}</tr>
+  {% else %}<tr><td colspan="{{ 8 if v.mit_anfangsbestand else 7 }}" class="leise">Keine Projekte mit Bewegungen.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><th colspan="2">Summe</th><td class="r">{{ v.summen.stand_anfang|euro }}</td>{% if v.mit_anfangsbestand %}<td class="r">{{ v.summen.anfangsbestand|euro }}</td>{% endif %}<td class="r">{{ v.summen.eingang|euro }}</td>
+      <td class="r">{{ v.summen.ausgang|euro }}</td><td class="r">{{ v.summen.umbuchung|euro }}</td>
+      <td class="r"><strong>{{ v.summen.stand_ende|euro }}</strong></td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ v.je_konto_summen[k.konto.id]|euro }}</td>{% endfor %}{% endif %}</tr>
+    <tr><th colspan="{{ 7 if v.mit_anfangsbestand else 6 }}">Kontostände am {{ v.bis|datum }}</th><td class="r">{{ v.kontostand_gesamt|euro }}</td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ k.kb.endsaldo|euro }}</td>{% endfor %}{% endif %}</tr>
+    <tr><th colspan="{{ 7 if v.mit_anfangsbestand else 6 }}">noch nicht auf Projekte verteilt</th><td class="r">{{ v.nicht_verteilt_gesamt|euro }}</td>
+      {% if v.konten|length > 1 %}{% for k in v.konten %}<td class="r">{{ k.nicht_verteilt|euro }}</td>{% endfor %}{% endif %}</tr>
+  </tfoot>
+</table></div>
+{% if v.ohne_konto %}<p class="hinweis">{{ v.ohne_konto|euro }} stammen aus Umbuchungen ohne hinterlegtes Konto;
+  sie erscheinen im Stand der Projekte, aber in keiner Kontospalte.</p>{% endif %}
+{% endblock %}

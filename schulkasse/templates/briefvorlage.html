@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Briefvorlage{% endblock %}
+{% block content %}
+<h1>Briefvorlage</h1>
+<p class="leise">Texte und Logo für Elternbriefe und Erinnerungsschreiben. Sie gelten für alle Projekte; den eigentlichen
+  Brieftext je Projekt passen Sie beim Erzeugen der Elternbriefe an.</p>
+
+{% if dateifehler %}<p class="hinweis">{{ dateifehler }}</p>{% endif %}
+{% if platzhalter %}
+<p class="hinweis">Noch nicht angepasst: {% for key in platzhalter %}<a href="#{{ key }}">{{ felder[key][0] }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.
+  Diese Texte enthalten noch „[PLATZHALTER …]“ und würden so gedruckt.</p>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" class="karte formular breit briefvorlage">
+  {{ csrf() }}
+  <fieldset><legend>Logo</legend>
+    {% if cfg.logo_uri %}
+      <p><img src="{{ cfg.logo_uri }}" alt="Aktuelles Logo" class="logo-vorschau"></p>
+      {% if herkunft.logo == 'app' %}
+      <label class="check"><input type="checkbox" name="logo_entfernen" value="1"> Logo entfernen (dann steht oben links der Schulname)</label>
+      {% else %}
+      <p class="leise">Aus der Datei {{ pfad }}. Ein hier hochgeladenes Logo hat Vorrang.</p>
+      {% endif %}
+    {% else %}
+      <p class="leise">Kein Logo hinterlegt – oben links steht der Schulname.</p>
+    {% endif %}
+    <div class="feld"><label for="logo">{{ 'Neues Logo hochladen' if cfg.logo_uri else 'Logo hochladen' }}</label>
+      <input id="logo" type="file" name="logo" accept="image/png,image/jpeg">
+      <span class="hilfe">PNG oder JPG, höchstens 2 MB. Große Bilder werden automatisch verkleinert; im Brief wird das Logo
+        höchstens 5 cm breit und 2,2 cm hoch gedruckt.</span></div>
+  </fieldset>
+
+  {% for key, (label, hilfe, maxlen, mehrzeilig) in felder.items() %}
+  <div class="feld{{ ' offen' if key in platzhalter }}" id="{{ key }}">
+    <label for="f-{{ key }}">{{ label }}{% if key in platzhalter %} <span class="badge b-offen">Platzhalter</span>{% endif %}</label>
+    {% if mehrzeilig %}
+      <textarea id="f-{{ key }}" name="{{ key }}" maxlength="{{ maxlen }}" rows="{{ 10 if key == 'standardtext' else 4 }}">{{ werte[key] or '' }}</textarea>
+    {% else %}
+      <input id="f-{{ key }}" name="{{ key }}" maxlength="{{ maxlen }}" value="{{ werte[key] or '' }}">
+    {% endif %}
+    <span class="hilfe">{{ hilfe }}{% if herkunft[key] == 'datei' %} · Derzeit Standardwert{% endif %}</span>
+  </div>
+  {% endfor %}
+
+  <p class="leise">Ein leer gelassenes Feld setzt den Text auf den Standardwert zurück. Projekte, für die schon Briefe
+    erzeugt wurden, behalten ihren gespeicherten Brieftext; dort gibt es auf der Seite „Elternbriefe“ den Knopf
+    „Aktuellen Standardtext übernehmen“.</p>
+  <div class="aktionen">
+    <button type="submit" name="aktion" value="speichern">Speichern</button>
+    <button type="submit" name="aktion" value="vorschau" class="zweit" formtarget="_blank">Vorschau als PDF (ohne Speichern)</button>
+  </div>
+</form>
+{% endblock %}

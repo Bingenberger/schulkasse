@@ -1,0 +1,11 @@
+[Unit]
+Description=Schulkasse Sicherung (VACUUM INTO + Belege)
+
+[Service]
+Type=oneshot
+User=schulkasse
+Group=schulkasse
+WorkingDirectory=/opt/schulkasse
+EnvironmentFile=/opt/schulkasse/.env
+ExecStart=/opt/schulkasse/.venv/bin/schulkasse backup
+UMask=0077

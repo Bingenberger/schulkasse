@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Klassenliste importieren{% endblock %}
+{% block content %}
+<h1>Klassenliste importieren</h1>
+<form method="post" enctype="multipart/form-data" class="formular karte">
+  {{ csrf() }}
+  <div class="feld"><label for="schuljahr_id">Schuljahr</label>
+    <select id="schuljahr_id" name="schuljahr_id" required>
+      {% for s in schuljahre %}<option value="{{ s.id }}" {% if s.id == sj_id %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <div class="feld"><label for="datei">CSV-Datei</label>
+    <input id="datei" type="file" name="datei" accept=".csv,.txt" required>
+    <span class="hilfe">Spalten <code>klasse;nachname;vorname;familie</code> mit Überschriftszeile, Trennzeichen Semikolon,
+      UTF-8 oder Windows-1252 (Excel). Die Spalte <code>familie</code> ist optional – ohne sie schlägt die Anwendung
+      Geschwister anhand gleicher Nachnamen vor.</span></div>
+  <div><button type="submit">Vorschau anzeigen</button></div>
+</form>
+{% endblock %}

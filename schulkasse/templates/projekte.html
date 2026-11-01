@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Projekte{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Projekte</h1>
+  {% if ist_kasse %}<a class="knopf" href="{{ url_for('projekte.neu') }}">Neues Projekt</a>{% endif %}
+</div>
+<form class="filter" method="get">
+  <div class="feld"><label for="f-sj">Schuljahr</label>
+    <select id="f-sj" name="schuljahr" data-autosubmit><option value="">alle</option>
+      {% for s in schuljahre %}<option value="{{ s.id }}" {% if sj_id == s.id %}selected{% endif %}>{{ s.bezeichnung }}{% if s.aktiv %} (aktiv){% endif %}</option>{% endfor %}
+    </select></div>
+  <div class="feld"><label for="f-st">Status</label>
+    <select id="f-st" name="status" data-autosubmit><option value="">alle</option>
+      <option value="offen" {% if status == 'offen' %}selected{% endif %}>offen</option>
+      <option value="abgeschlossen" {% if status == 'abgeschlossen' %}selected{% endif %}>abgeschlossen</option></select></div>
+  <button type="submit">Anzeigen</button>
+</form>
+{% include "_projekttabelle.html" %}
+{% endblock %}

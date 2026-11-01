@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge %}
+{% block title %}Elternbriefe{% endblock %}
+{% block content %}
+<h1>Elternbriefe <small>{{ p.bezeichnung }}</small></h1>
+<p class="leise">Ein PDF mit einer Seite je Kind, sortiert nach Klasse und Name. Jede Seite enthält einen QR-Code (Girocode)
+  mit Empfänger, IBAN, Betrag und dem Zahlcode im Verwendungszweck.</p>
+{% if platzhalter %}
+<p class="hinweis">Die Briefvorlage enthält noch Platzhalter ([PLATZHALTER …]), die so gedruckt würden.
+  {% if ist_kasse %}Bitte unter <a href="{{ url_for('verwaltung.briefvorlage') }}">Verwaltung → Briefvorlage</a>
+  bzw. im Brieftext unten anpassen.{% else %}Bitte die Kasse bitten, die Briefvorlage anzupassen.{% endif %}</p>
+{% endif %}
+<form method="post" class="karte formular breit">
+  {{ csrf() }}
+  <fieldset><legend>Empfänger</legend>
+    <label class="check"><input type="radio" name="modus" value="alle" checked> alle Kinder des Projekts ({{ posten|length }})</label>
+    <label class="check"><input type="radio" name="modus" value="offen"> nur Kinder mit offenem Posten</label>
+    <label class="check"><input type="radio" name="modus" value="auswahl"> manuelle Auswahl (z. B. Nachdruck):</label>
+    <div class="kinderliste">
+      {% for po in posten %}
+      <label><input type="checkbox" name="posten" value="{{ po.id }}"> {{ po.klasse }} · {{ po.nachname }}, {{ po.vorname }}
+        <small class="mono">{{ po.zahlcode }}</small> {{ badge(po.status) }}{% if po.letzter_brief_am %} <small>Brief {{ po.letzter_brief_am|zeit }}</small>{% endif %}</label>
+      {% endfor %}
+    </div>
+  </fieldset>
+  <div class="feld"><label for="text">Brieftext</label>
+    <textarea id="text" name="text" rows="10" class="brieftext">{{ text }}</textarea>
+    <span class="hilfe">Wird zwischen dem Kurz-Überblick und dem QR-Code gedruckt und für das Projekt gespeichert.</span>
+    {% if text != cfg.standardtext %}
+    <textarea id="standardtext-vorlage" hidden aria-hidden="true">{{ cfg.standardtext }}</textarea>
+    <p><button type="button" class="zweit klein" data-text-quelle="standardtext-vorlage" data-text-ziel="text"
+       data-confirm="Den Brieftext durch den aktuellen Standardtext der Briefvorlage ersetzen?">Aktuellen Standardtext übernehmen</button></p>
+    {% endif %}</div>
+  <div><button type="submit">PDF erzeugen</button></div>
+</form>
+{% endblock %}

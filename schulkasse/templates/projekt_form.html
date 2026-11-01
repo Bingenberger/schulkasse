@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}{{ 'Projekt bearbeiten' if p else 'Neues Projekt' }}{% endblock %}
+{% block content %}
+<h1>{{ 'Projekt bearbeiten' if p else 'Neues Projekt' }}</h1>
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="feld"><label for="bezeichnung">Bezeichnung</label>
+    <input id="bezeichnung" name="bezeichnung" value="{{ werte.bezeichnung or '' }}" required placeholder="Klassenfahrt 4a Nettersheim"></div>
+  <div class="zeile">
+    <div class="feld"><label for="kurzcode">Kurzcode</label>
+      <input id="kurzcode" name="kurzcode" value="{{ werte.kurzcode or '' }}" required pattern="[A-Za-z0-9]{3,8}" maxlength="8"
+        {% if gesperrt %}readonly{% endif %} class="mono">
+      <span class="hilfe">{% if gesperrt %}Nicht mehr änderbar – es wurden bereits Briefe mit Zahlcodes erzeugt.{% else %}3–8 Zeichen A–Z/0–9, steht in jedem Zahlcode (z. B. KF4A-0042).{% endif %}</span></div>
+    <div class="feld"><label for="typ">Typ</label>
+      <select id="typ" name="typ" required>
+        {% for k, t in typen.items() %}<option value="{{ k }}" {% if werte.typ == k %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <div class="zeile">
+    <div class="feld"><label for="schuljahr_id">Schuljahr</label>
+      <select id="schuljahr_id" name="schuljahr_id" required>
+        {% for s in schuljahre %}<option value="{{ s.id }}" {% if werte.schuljahr_id|string == s.id|string %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <fieldset class="klassenwahl"><legend>Klassen (optional, mehrere möglich)</legend>
+    {% for g in klassen_gruppen %}
+    <div class="klassengruppe" data-schuljahr="{{ g.schuljahr.id }}">
+      {% if klassen_gruppen|length > 1 %}<p class="leise">Schuljahr {{ g.schuljahr.bezeichnung }}</p>{% endif %}
+      {% if g.jahrgaenge %}
+      <div class="aktionen">
+        {% for j in g.jahrgaenge %}<button type="button" class="zweit klein" data-jahrgang="{{ j }}">Jahrgang {{ j }}</button>{% endfor %}
+      </div>
+      {% endif %}
+      <div class="klassen-checks">
+        {% for k in g.klassen %}
+        <label class="check"><input type="checkbox" name="klasse_ids" value="{{ k.id }}" data-jahrgang="{{ k.jahrgang or '' }}"
+          {% if k.id in klassen_gewaehlt %}checked{% endif %}> {{ k.bezeichnung }} <small class="leise">({{ k.anzahl }})</small></label>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}<p class="leise">Es sind noch keine Klassen angelegt.</p>{% endfor %}
+    <span class="hilfe">Für Fahrten einer ganzen Jahrgangsstufe alle betroffenen Klassen wählen. Die Auswahl gilt
+      als Vorbelegung beim Anlegen der Elternbeiträge.</span>
+  </fieldset>
+  <div class="zeile">
+    <div class="feld"><label for="verantwortlich_user_id">Verantwortlich</label>
+      <select id="verantwortlich_user_id" name="verantwortlich_user_id"><option value="">– niemand –</option>
+        {% for b in benutzer %}<option value="{{ b.id }}" {% if werte.verantwortlich_user_id|string == b.id|string %}selected{% endif %}>{{ b.anzeigename }} ({{ ROLLEN[b.rolle] }})</option>{% endfor %}
+      </select>
+      <span class="hilfe">Lehrkräfte sehen nur Projekte, für die sie verantwortlich sind.</span></div>
+    <div class="feld"><label for="konto_id">Konto für QR-Codes</label>
+      <select id="konto_id" name="konto_id"><option value="">– Standardkonto –</option>
+        {% for k in konten %}<option value="{{ k.id }}" {% if werte.konto_id|string == k.id|string %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <div class="feld"><label for="beschreibung">Beschreibung</label>
+    <textarea id="beschreibung" name="beschreibung">{{ werte.beschreibung or '' }}</textarea></div>
+  <div class="aktionen"><button type="submit">Speichern</button>
+    <a href="{{ url_for('projekte.detail', projekt_id=p.id) if p else url_for('projekte.liste') }}">Abbrechen</a></div>
+</form>
+{% endblock %}

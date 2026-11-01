@@ -1,0 +1,16 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Zahlungsstand {{ p.bezeichnung }}{% endblock %}
+{% block body %}
+<h1>Zahlungsstand: {{ p.bezeichnung }} ({{ p.kurzcode }})</h1>
+<div class="meta">Erzeugt am {{ erzeugt|zeit }} von {{ user.anzeigename }}{% if kz.gesamt %} · {{ kz.bezahlt }} von {{ kz.gesamt }} bezahlt ({{ kz.quote }} %){% endif %}</div>
+<table>
+  <thead><tr><th>Klasse</th><th>Name</th><th>Zahlcode</th><th class="r">Soll</th><th class="r">Bezahlt</th><th class="r">Offen</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr><td>{{ r.klasse }}</td><td>{{ r.nachname }}, {{ r.vorname }}</td><td>{{ r.zahlcode or '' }}</td>
+    <td class="r">{{ r.sollbetrag_cent|euro }}</td><td class="r">{{ r.bezahlt|euro }}</td>
+    <td class="r">{{ [r.sollbetrag_cent - r.bezahlt, 0]|max|euro }}</td><td>{{ r.status }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

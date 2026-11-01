@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Kontoauszug importieren{% endblock %}
+{% block content %}
+<h1>Kontoauszug importieren</h1>
+{% if not konten %}
+<p class="hinweis">Es ist noch kein Konto angelegt. Umsätze können nur für angelegte Konten importiert werden.</p>
+{% endif %}
+<form method="post" enctype="multipart/form-data" class="formular karte">
+  {{ csrf() }}
+  <div class="feld">
+    <label for="datei">CAMT.052-Datei (.xml) oder ZIP-Archiv der Bank</label>
+    <input id="datei" type="file" name="datei" accept=".xml,.zip" required>
+    <span class="hilfe">Das Konto wird anhand der IBAN in der Datei erkannt. Überlappende Zeiträume sind kein Problem –
+      bereits vorhandene Umsätze werden erkannt und übersprungen. Vor dem Speichern sehen Sie eine Vorschau.</span>
+  </div>
+  <div><button type="submit">Datei prüfen</button></div>
+</form>
+
+<h2>Bisherige Importe</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datei</th><th>Konto</th><th>Zeitraum</th><th class="r">Gesamt</th><th class="r">Neu</th><th class="r">Duplikate</th>
+    <th class="r">Schlusssaldo</th><th>Importiert</th></tr></thead>
+  {% for i in importe %}
+  <tr><td>{{ i.dateiname }}</td><td>{{ i.konto }}</td><td>{{ i.zeitraum_von|datum }} – {{ i.zeitraum_bis|datum }}</td>
+    <td class="r">{{ i.anzahl_gesamt }}</td><td class="r">{{ i.anzahl_neu }}</td><td class="r">{{ i.anzahl_duplikat }}</td>
+    <td class="r">{% if i.saldo_schluss_cent is not none %}{{ i.saldo_schluss_cent|euro }} <small>({{ i.saldo_datum|datum }})</small>{% else %}–{% endif %}</td>
+    <td>{{ i.von }}, {{ i.importiert_am|zeit }}</td></tr>
+  {% else %}<tr><td colspan="8" class="leise">Noch keine Importe.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

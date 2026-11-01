@@ -1,0 +1,25 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Kassenbuch{% endblock %}
+{% block orientierung %}landscape{% endblock %}
+{% block body %}
+<h1>Kassenbuch {{ kb.konto.bezeichnung }}</h1>
+<div class="meta">IBAN {{ kb.konto.iban|iban }} · Zeitraum {{ kb.von|datum }} – {{ kb.bis|datum }} · erzeugt am {{ erzeugt|zeit }} von {{ user.anzeigename }}</div>
+<table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th>Zuordnung</th><th class="r">Betrag</th></tr></thead>
+  <tbody>
+    <tr><td></td><td colspan="3"><b>Anfangssaldo</b></td><td class="r"><b>{{ kb.anfangssaldo|euro }}</b></td></tr>
+    {% for z in kb.zeilen %}{% set u = z.umsatz %}
+    <tr><td>{{ u.buchungsdatum|datum }}</td><td>{{ u.gegen_name or '' }}</td><td>{{ u.verwendungszweck or '' }}</td>
+      <td>{% if z.ignoriert_grund %}ignoriert: {{ z.ignoriert_grund }}{% else %}{% for t in z.teile %}{{ t.kurzcode }}{% if t.zahlcode %} {{ t.zahlcode }}{% endif %}: {{ t.betrag_cent|euro }}{% if not loop.last %}<br>{% endif %}{% endfor %}
+        {% if u.buchungsdatum < kb.beginn %}<i>(vor Beginn der Kontoführung, im Anfangsbestand)</i>
+        {% elif u.zuordnungsstatus in ('offen','teilweise') %}<i>(nicht vollständig zugeordnet)</i>{% endif %}{% endif %}</td>
+      <td class="r">{{ u.betrag_cent|euro }}</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td></td><td colspan="3">Summe Eingänge</td><td class="r">{{ kb.eingaenge|euro }}</td></tr>
+    <tr><td></td><td colspan="3">Summe Ausgänge</td><td class="r">{{ kb.ausgaenge|euro }}</td></tr>
+    <tr><td></td><td colspan="3">Endsaldo</td><td class="r">{{ kb.endsaldo|euro }}</td></tr>
+  </tfoot>
+</table>
+{% endblock %}

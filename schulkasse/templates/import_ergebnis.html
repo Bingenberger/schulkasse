@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Import abgeschlossen{% endblock %}
+{% block content %}
+<h1>Import abgeschlossen</h1>
+<div class="karte">
+  <ul>
+  {% for e in ergebnisse %}
+    <li><strong>{{ e.dateiname }}</strong> ({{ e.konto.bezeichnung }}): {{ e.neu }} neue Umsätze, {{ e.duplikate }} Duplikate übersprungen{% if e.ersetzt %}, {{ e.ersetzt }} vorgemerkte durch gebuchte ersetzt{% endif %}.</li>
+  {% endfor %}
+  </ul>
+  <h2>Automatische Zuordnung</h2>
+  <dl class="kennzahlen">
+    <div><dt>Geprüft</dt><dd>{{ stats.geprueft }}</dd></div>
+    <div><dt>Automatisch zugeordnet</dt><dd>{{ stats.automatisch }}</dd></div>
+    <div><dt>Mit Vorschlag</dt><dd>{{ stats.vorschlaege }}</dd></div>
+    <div><dt>Ohne Treffer</dt><dd>{{ stats.ohne_treffer }}</dd></div>
+  </dl>
+  <p><a class="knopf" href="{{ url_for('umsaetze.arbeitsliste') }}">Weiter zur Zuordnung</a></p>
+</div>
+{% endblock %}

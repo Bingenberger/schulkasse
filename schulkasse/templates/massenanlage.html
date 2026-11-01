@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Beiträge anlegen{% endblock %}
+{% block content %}
+<h1>Beiträge anlegen <small>{{ p.bezeichnung }}</small></h1>
+
+<form method="get" class="filter">
+  <fieldset><legend>1. Klassen wählen</legend>
+    <div class="aktionen">
+    {% for k in klassen %}
+      <label class="check"><input type="checkbox" name="klasse" value="{{ k.id }}" {% if k.id in klassen_ids %}checked{% endif %}> {{ k.bezeichnung }} <small>({{ k.anzahl }})</small></label>
+    {% else %}<span class="leise">Im Schuljahr des Projekts gibt es noch keine Klassen.</span>{% endfor %}
+    </div>
+  </fieldset>
+  <button type="submit" class="zweit">Kinder anzeigen</button>
+</form>
+
+{% if kinder %}
+{% set normale = kinder|rejectattr('but_status')|list %}
+{% set but = kinder|selectattr('but_status')|list %}
+<form method="post" class="karte">
+  {{ csrf() }}
+  {% for k in klassen_ids %}<input type="hidden" name="klasse" value="{{ k }}">{% endfor %}
+  <fieldset><legend>2. Kinder ({{ normale|length }})</legend>
+    <label class="check"><input type="checkbox" data-alle=".kind-cb" checked> alle auswählen</label>
+    <div class="kinderliste">
+    {% for k in normale %}
+      <label><input type="checkbox" class="kind-cb" name="kind" value="{{ k.id }}" {% if k.hat_posten %}disabled{% else %}checked{% endif %}>
+        {{ k.nachname }}, {{ k.vorname }} <small>{{ k.klasse }}{% if k.hat_posten %} · hat bereits einen Posten{% endif %}</small></label>
+    {% endfor %}
+    </div>
+  </fieldset>
+
+  {% if but %}
+  <fieldset><legend>BuT-/Härtefallkinder ({{ but|length }}) – standardmäßig ausgeschlossen</legend>
+    <p class="leise">Nur ausdrücklich angehakte Kinder werden berücksichtigt. Sie erscheinen nie in Erinnerungslisten.</p>
+    <div class="kinderliste">
+    {% for k in but %}
+      <label><input type="checkbox" name="but_kind" value="{{ k.id }}" {% if k.hat_posten %}disabled{% endif %}>
+        {{ k.nachname }}, {{ k.vorname }} <small>{{ k.klasse }}</small></label>
+    {% endfor %}
+    </div>
+    <div class="feld"><label for="but_modus">Für ausgewählte BuT-Kinder</label>
+      <select id="but_modus" name="but_modus">
+        <option value="keiner">keinen Posten anlegen</option>
+        <option value="erlassen">Posten mit Status „erlassen“ anlegen</option>
+      </select></div>
+  </fieldset>
+  {% endif %}
+
+  <fieldset><legend>3. Betrag und Frist</legend>
+    <div class="zeile">
+      <div class="feld"><label for="betrag">Betrag je Kind</label><input id="betrag" name="betrag" inputmode="decimal" required value="{{ werte.betrag or '' }}" placeholder="45,00"></div>
+      <div class="feld"><label for="faellig_am">Zahlbar bis</label><input id="faellig_am" type="date" name="faellig_am" value="{{ werte.faellig_am or '' }}"></div>
+      <div class="feld"><label for="bezeichnung">Bezeichnung</label><input id="bezeichnung" name="bezeichnung" value="{{ werte.bezeichnung or p.bezeichnung }}"></div>
+    </div>
+  </fieldset>
+  <p><button type="submit">Posten anlegen</button></p>
+</form>
+{% elif klassen_ids %}
+<p class="leise">In den gewählten Klassen gibt es keine aktiven Kinder.</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge, betrag, seiten_nav %}
+{% block title %}Zuordnung{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Zuordnung <small>{{ gesamt }} offene Umsätze</small></h1>
+  <form method="post" action="{{ url_for('umsaetze.matching_erneut') }}">
+    {{ csrf() }}<button class="zweit" type="submit">Matching erneut ausführen</button>
+  </form>
+</div>
+
+<form class="filter" method="get">
+  <div class="feld"><label for="f-konto">Konto</label>
+    <select id="f-konto" name="konto"><option value="">alle</option>
+      {% for k in konten %}<option value="{{ k.id }}" {% if args.konto == k.id|string %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <div class="feld"><label for="f-von">von</label><input id="f-von" type="date" name="von" value="{{ args.von or '' }}"></div>
+  <div class="feld"><label for="f-bis">bis</label><input id="f-bis" type="date" name="bis" value="{{ args.bis or '' }}"></div>
+  <div class="feld"><label for="f-r">Richtung</label>
+    <select id="f-r" name="richtung"><option value="">alle</option>
+      <option value="ein" {% if args.richtung == 'ein' %}selected{% endif %}>Eingänge</option>
+      <option value="aus" {% if args.richtung == 'aus' %}selected{% endif %}>Ausgänge</option></select></div>
+  <div class="feld"><label for="f-min">Betrag ab</label><input id="f-min" name="min" value="{{ args.min or '' }}" inputmode="decimal"></div>
+  <div class="feld"><label for="f-max">bis</label><input id="f-max" name="max" value="{{ args.max or '' }}" inputmode="decimal"></div>
+  <div class="feld"><label for="f-nur">Anzeigen</label>
+    <select id="f-nur" name="nur"><option value="">alle</option>
+      <option value="vorschlag" {% if args.nur == 'vorschlag' %}selected{% endif %}>nur mit Vorschlag</option>
+      <option value="ohne" {% if args.nur == 'ohne' %}selected{% endif %}>nur ohne Vorschlag</option></select></div>
+  <button type="submit">Filtern</button>
+  <a href="{{ url_for('umsaetze.arbeitsliste') }}">zurücksetzen</a>
+</form>
+
+{% if not umsaetze %}
+<p class="hinweis info">Keine offenen Umsätze – alles zugeordnet.</p>
+{% endif %}
+
+{% set zurueck = request.full_path %}
+{% for u in umsaetze %}
+<article class="umsatz" aria-label="Umsatz vom {{ u.buchungsdatum|datum }}">
+  <div class="kopf-u">
+    <span>{{ u.buchungsdatum|datum }}</span>
+    <span class="name">{{ u.gegen_name or '(ohne Namen)' }}</span>
+    {% if u.zuordnungsstatus == 'teilweise' %}{{ badge('teilweise') }} <small>Rest {{ (u.betrag_cent|abs - u.verteilt)|euro }}</small>{% endif %}
+    {{ betrag(u.betrag_cent) }}
+  </div>
+  <div class="zweck">{{ u.verwendungszweck or '' }}</div>
+  {% set vs = vorschlaege.get(u.id, []) %}
+  {% if vs %}
+  <div class="vorschlaege">
+    {% for x in vs %}
+    <div class="vorschlag">
+      <label class="check"><input type="checkbox" name="vorschlag" value="{{ x.v.id }}" form="sammelform" class="sammel-cb"
+        {% if loop.first and vs|length == 1 %}data-einzeln="1"{% endif %} aria-label="Vorschlag auswählen">
+        <span class="konf {{ 'hoch' if x.v.konfidenz >= 80 else 'mittel' }}">{{ x.v.konfidenz }} %</span></label>
+      <span class="teile">
+        <strong>{{ x.v.regel }}</strong>:
+        {% for t in x.teile %}
+          {% if not loop.first %} + {% endif %}
+          {{ t.betrag_cent|euro }} → {% if t.zahlcode %}<span class="mono">{{ t.zahlcode }}</span>{% endif %}
+          {% if t.vorname %}{{ t.vorname }} {{ t.nachname }} ({{ t.klasse }}){% else %}{{ t.posten or t.projekt }}{% endif %}
+          <small>[{{ t.kurzcode }}]</small>
+        {% endfor %}
+        <br><small>{{ x.v.hinweis }}</small>
+      </span>
+      <form method="post" action="{{ url_for('umsaetze.vorschlag_uebernehmen', vorschlag_id=x.v.id) }}">
+        {{ csrf() }}<input type="hidden" name="zurueck" value="{{ zurueck }}">
+        <button type="submit" class="klein">Übernehmen</button>
+      </form>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+  <div class="fuss">
+    <a href="{{ url_for('umsaetze.detail', umsatz_id=u.id) }}">Manuell zuordnen / aufteilen</a>
+    <details class="aufklapp">
+      <summary>Ignorieren …</summary>
+      <form method="post" action="{{ url_for('umsaetze.ignorieren_view', umsatz_id=u.id) }}" class="zeile">
+        {{ csrf() }}<input type="hidden" name="zurueck" value="{{ zurueck }}">
+        <div class="feld"><label for="ig-{{ u.id }}">Begründung (Pflicht)</label>
+          <input id="ig-{{ u.id }}" name="grund" required placeholder="z. B. Kontoführungsgebühr"></div>
+        <button type="submit" class="zweit">Ignorieren</button>
+      </form>
+    </details>
+    <small class="leise">{{ u.konto }}{% if u.gegen_iban %} · {{ u.gegen_iban|iban }}{% endif %}</small>
+  </div>
+</article>
+{% endfor %}
+
+{{ seiten_nav(seite, seiten, args, 'umsaetze.arbeitsliste') }}
+
+{% if vorschlaege %}
+<form id="sammelform" class="sammel" method="post" action="{{ url_for('umsaetze.sammelbestaetigung') }}">
+  {{ csrf() }}<input type="hidden" name="zurueck" value="{{ zurueck }}">
+  <label class="check"><input type="checkbox" data-alle=".sammel-cb[data-einzeln]"> alle eindeutigen Vorschläge auswählen</label>
+  <button type="submit">Ausgewählte Vorschläge übernehmen</button>
+</form>
+{% endif %}
+
+{% if vorgemerkt %}
+<h2>Vorgemerkte Umsätze <small>(noch nicht gebucht, nicht zuordenbar)</small></h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th></th></tr></thead>
+  {% for u in vorgemerkt %}
+  <tr><td>{{ u.buchungsdatum|datum }}</td><td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td><td>{{ badge('PDNG') }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

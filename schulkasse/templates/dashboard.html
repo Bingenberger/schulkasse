@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Übersicht{% if schuljahr %} <small>Schuljahr {{ schuljahr.bezeichnung }}</small>{% endif %}</h1>
+  <div class="aktionen">
+    <a class="knopf" href="{{ url_for('umsaetze.import_start') }}">Kontoauszug importieren</a>
+    <a class="knopf zweit" href="{{ url_for('umsaetze.arbeitsliste') }}">Zur Zuordnung</a>
+  </div>
+</div>
+
+{% if not konten %}
+<p class="hinweis">Es ist noch kein Bankkonto angelegt.
+  {% if aktueller_user.rolle == 'admin' %}<a href="{{ url_for('verwaltung.konten') }}">Jetzt Konto erfassen</a>{% else %}Bitte die Administration informieren.{% endif %}</p>
+{% endif %}
+{% if not schuljahr %}
+<p class="hinweis">Es ist kein Schuljahr aktiv. <a href="{{ url_for('stammdaten.schuljahre') }}">Schuljahr anlegen</a></p>
+{% endif %}
+
+{% set g_ = kontrolle.gesamt %}
+<section class="karte kontrolle {{ 'null' if kontrolle.vorhanden and g_.differenz == 0 else 'diff' }}" aria-labelledby="kontrolle-titel">
+  <h2 id="kontrolle-titel">Kontrollrechnung</h2>
+  {% if not kontrolle.vorhanden %}
+    <p>Noch kein Kontoauszug mit Saldo importiert.</p>
+  {% else %}
+    {% if g_.differenz == 0 %}
+      <p class="ampel null">Differenz 0,00 € – jeder Umsatz ist verbucht.</p>
+    {% else %}
+      <p class="ampel diff">Differenz {{ g_.differenz|euro }}</p>
+      <ul>
+        {% if g_.offen %}<li><a href="{{ url_for('umsaetze.arbeitsliste') }}">{{ g_.offen }} Umsätze noch nicht (vollständig) zugeordnet</a></li>{% endif %}
+        {% for z in kontrolle.konten if z.nicht_verteilt %}
+        <li><a href="{{ url_for('verwaltung.anfangsbestand', konto_id=z.konto.id) }}">Anfangsbestand {{ z.konto.bezeichnung }}:
+          {{ z.nicht_verteilt|euro }} noch nicht auf Projekte verteilt</a></li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% for z in kontrolle.konten %}
+    <div class="tabelle-wrap">
+    <table>
+      <caption class="leise">{{ z.konto.bezeichnung }} · Stand {{ z.saldo_datum|datum }}
+        {% if z.stichtag %}· Kontoführung ab {{ z.stichtag|datum }}{% endif %}</caption>
+      <tr><td>Kontostand laut letztem Import</td><td class="betrag">{{ z.kontostand|euro }}</td></tr>
+      <tr><td>− Auf Projekte verteilter Anfangsbestand
+        <small>(<a href="{{ url_for('verwaltung.anfangsbestand', konto_id=z.konto.id) }}">von {{ z.anfangsbestand|euro }}</a>)</small></td>
+        <td class="betrag">{{ z.verteilt|euro }}</td></tr>
+      <tr><td>− Summe aller nicht stornierten Zuordnungen</td><td class="betrag">{{ z.zugeordnet|euro }}</td></tr>
+      <tr><td>− Summe aller ignorierten Umsätze</td><td class="betrag">{{ z.ignoriert|euro }}</td></tr>
+      <tr class="summe"><td>= Differenz</td><td class="betrag">{{ z.differenz|euro }}</td></tr>
+    </table>
+    </div>
+    {% endfor %}
+  {% endif %}
+</section>
+
+<div class="raster">
+  <div class="karte"><div class="leise">Offene Umsätze</div>
+    <div class="zahl"><a href="{{ url_for('umsaetze.arbeitsliste') }}">{{ zahlen.offen }}</a></div>
+    <small>davon mit Vorschlag: {{ zahlen.vorschlaege }} · teilweise: {{ zahlen.teilweise }}</small></div>
+  <div class="karte"><div class="leise">Vorgemerkte Umsätze</div>
+    <div class="zahl">{{ zahlen.vorgemerkt }}</div><small>werden nach Buchung zuordenbar</small></div>
+  <div class="karte"><div class="leise">Überzahlungen</div>
+    <div class="zahl"><a href="{{ url_for('auswertungen.ueberzahlungen_view') }}">{{ zahlen.ueberzahlungen }}</a></div>
+    <small>keine automatische Rückerstattung</small></div>
+</div>
+
+<h2>Offene Projekte</h2>
+{% include "_projekttabelle.html" %}
+
+<h2>Letzte Importe</h2>
+{% if importe %}
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datei</th><th>Konto</th><th>Zeitraum</th><th class="r">Neu</th><th class="r">Duplikate</th><th class="r">Saldo</th><th>Importiert</th></tr></thead>
+  <tbody>
+  {% for i in importe %}
+    <tr><td>{{ i.dateiname }}</td><td>{{ i.konto }}</td><td>{{ i.zeitraum_von|datum }} – {{ i.zeitraum_bis|datum }}</td>
+      <td class="r">{{ i.anzahl_neu }}</td><td class="r">{{ i.anzahl_duplikat }}</td>
+      <td class="r">{{ i.saldo_schluss_cent|euro if i.saldo_schluss_cent is not none else '–' }}</td><td>{{ i.importiert_am|zeit }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="leise">Noch keine Importe.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Geld je Projekt und Konto{% endblock %}
+{% from "macros.html" import csrf %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Geld je Projekt und Konto</h1>
+  <div class="aktionen">
+    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='pdf') }}">PDF</a>
+    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='csv') }}">CSV</a>
+  </div>
+</div>
+<p class="leise">Saldo jedes Projekts, aufgeteilt auf die Konten. Grundlage sind die zugeordneten Umsätze, die
+  verteilten Anfangsbestände und die Umbuchungen zwischen Projekten.</p>
+
+<form class="filter" method="get">
+  <label class="check"><input type="checkbox" name="nur" value="aufgeteilt" {% if nur_aufgeteilt %}checked{% endif %}>
+    nur Projekte, die auf mehreren Konten liegen</label>
+  <button type="submit">Anzeigen</button>
+</form>
+
+{% if v.aufgeteilt_anzahl %}
+<p class="hinweis">{{ v.aufgeteilt_anzahl }} Projekt(e) liegen auf mehreren Konten. Zum Zusammenlegen den Betrag
+  per Banküberweisung von einem Konto auf das andere überweisen, beide Umsätze importieren und <em>beide</em>
+  demselben Projekt zuordnen (ohne Posten). Danach steht das Projekt nur noch auf einem Konto.</p>
+{% else %}
+<p class="hinweis info">Jedes Projekt liegt auf genau einem Konto.</p>
+{% endif %}
+
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Code</th>
+    {% for k in v.konten %}<th class="r">{{ k.bezeichnung }}</th>{% endfor %}
+    {% if v.ohne_konto %}<th class="r">ohne Konto</th>{% endif %}
+    <th class="r">Summe</th><th>Konten</th></tr></thead>
+  <tbody>
+  {% for p in v.projekte %}
+  <tr>
+    <td><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a>
+      {% if p.status != 'offen' %} <small class="leise">(abgeschlossen)</small>{% endif %}</td>
+    <td class="mono">{{ p.kurzcode }}</td>
+    {% for k in v.konten %}<td class="r">{{ p.betraege.get(k.id)|euro if p.betraege.get(k.id) else '–' }}</td>{% endfor %}
+    {% if v.ohne_konto %}<td class="r">{{ p.ohne_konto|euro if p.ohne_konto else '–' }}</td>{% endif %}
+    <td class="r"><strong>{{ p.summe|euro }}</strong></td>
+    <td>{% if p.aufgeteilt %}<span class="badge">auf {{ p.konten_anzahl }} Konten</span>{% endif %}</td>
+  </tr>
+  {% else %}<tr><td colspan="{{ 4 + v.konten|length }}" class="leise">Keine Projekte mit Bewegungen.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><th colspan="2">Summe Projekte</th>
+      {% for k in v.konten %}<td class="r"><strong>{{ v.summen[k.id]|euro }}</strong></td>{% endfor %}
+      {% if v.ohne_konto %}<td class="r"><strong>{{ v.ohne_konto|euro }}</strong></td>{% endif %}
+      <td class="r"><strong>{{ v.gesamt|euro }}</strong></td><td></td></tr>
+    <tr><th colspan="2">Kontostand (letzter Import)</th>
+      {% for k in v.konten %}<td class="r">{{ v.kontostand[k.id]|euro if v.kontostand[k.id] is not none else '–' }}</td>{% endfor %}
+      {% if v.ohne_konto %}<td></td>{% endif %}<td></td><td></td></tr>
+    <tr><th colspan="2">noch nicht verteilt / zugeordnet</th>
+      {% for k in v.konten %}<td class="r">{{ v.differenz[k.id]|euro if v.differenz[k.id] is not none else '–' }}</td>{% endfor %}
+      {% if v.ohne_konto %}<td></td>{% endif %}<td></td><td></td></tr>
+  </tfoot>
+</table></div>
+{% if ohne_konto %}
+<h2>Umbuchungen ohne Konto</h2>
+<p class="leise">Diese Umbuchungen stammen aus der Zeit, bevor das Konto mitgeführt wurde. Sie stehen oben in der
+  Spalte „ohne Konto“ und lassen die Beträge je Konto unvollständig aussehen. Trag hier nach, auf welchem Konto
+  der Betrag liegt – an den Salden der Projekte ändert sich dadurch nichts.</p>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Von</th><th>Nach</th><th class="r">Betrag</th><th>Grund</th><th>Konto nachtragen</th></tr></thead>
+  {% for u in ohne_konto %}
+  <tr><td>{{ u.von_projekt }} <small class="mono">{{ u.von_kurzcode }}</small></td>
+    <td>{{ u.nach_projekt }} <small class="mono">{{ u.nach_kurzcode }}</small></td>
+    <td class="r">{{ u.betrag_cent|euro }}</td><td>{{ u.grund }}</td>
+    <td class="keep">
+      <form method="post" action="{{ url_for('auswertungen.umbuchung_konto', umbuchung_id=u.id) }}" class="zeile">
+        {{ csrf() }}<input type="hidden" name="zurueck" value="{{ request.full_path }}">
+        <div class="feld"><label for="uk-{{ u.id }}">Konto</label>
+          <select id="uk-{{ u.id }}" name="konto_id">
+            {% for k in konten %}<option value="{{ k.id }}">{{ k.bezeichnung }}</option>{% endfor %}</select></div>
+        <button type="submit" class="zweit">Speichern</button>
+      </form>
+    </td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+<p class="leise">„noch nicht verteilt / zugeordnet“ entspricht der Differenz aus der
+  <a href="{{ url_for('start.dashboard') }}">Kontrollrechnung</a>: nicht verteilter Anfangsbestand und offene Umsätze.</p>
+{% endblock %}

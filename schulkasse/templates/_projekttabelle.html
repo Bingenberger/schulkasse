@@ -1,0 +1,22 @@
+{% from "macros.html" import badge %}
+{% if projekte %}
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Code</th><th>Typ</th><th>Klassen</th><th class="r">Saldo</th><th class="r">Erw. Eingänge</th>
+    <th class="r">Erw. Ausgänge</th><th class="r">Prognose</th><th class="r">Zahlungsquote</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for p, kz in projekte %}
+    <tr>
+      <td><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a></td>
+      <td class="mono">{{ p.kurzcode }}</td><td>{{ p.typ }}</td><td>{{ p.klasse or '' }}</td>
+      <td class="r">{{ kz.saldo|euro }}</td>
+      {% if p.status == 'offen' %}
+        <td class="r">{{ kz.erwartete_eingaenge|euro }}</td>
+        <td class="r">{{ kz.erwartete_ausgaenge|euro }}</td><td class="r">{{ kz.prognose|euro }}</td>
+      {% else %}<td class="r leise">–</td><td class="r leise">–</td><td class="r leise">–</td>{% endif %}
+      <td class="r">{% if kz.gesamt %}{{ kz.quote }} % ({{ kz.bezahlt }} von {{ kz.gesamt }}){% else %}–{% endif %}</td>
+      <td>{{ badge(p.status) }}{% if p.status != 'offen' and kz.saldo %} <span class="badge">Restsaldo</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="leise">Keine Projekte.</p>{% endif %}

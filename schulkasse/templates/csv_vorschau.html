@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Vorschau Klassenliste{% endblock %}
+{% block content %}
+<h1>Vorschau Klassenliste <small>Schuljahr {{ schuljahr.bezeichnung }}</small></h1>
+<dl class="kennzahlen">
+  <div><dt>Neue Kinder</dt><dd>{{ v.neu|length }}</dd></div>
+  <div><dt>Bereits vorhanden</dt><dd>{{ v.duplikate|length }}</dd></div>
+  <div><dt>Neue Klassen</dt><dd>{{ v.neue_klassen|join(', ') or '–' }}</dd></div>
+</dl>
+<form method="post" class="karte">
+  {{ csrf() }}<input type="hidden" name="token" value="{{ token }}"><input type="hidden" name="schritt" value="bestaetigen">
+  {% if v.vorschlaege %}
+  <fieldset><legend>Geschwister bestätigen</legend>
+    <p class="leise">Diese Kinder haben den gleichen Nachnamen. Angehakte Gruppen werden als eine Familie geführt
+      (wichtig für Sammelzahlungen). Nicht angehakte Kinder erhalten jeweils eine eigene Familie.</p>
+    {% for g in v.vorschlaege %}
+    <label class="check"><input type="checkbox" name="gruppe" value="{{ g.schluessel }}">
+      <span><strong>{{ g.nachname }}</strong>:
+        {% for z in g.neu %}{{ z.vorname }} ({{ z.klasse }}, neu){% if not loop.last or g.vorhanden %}, {% endif %}{% endfor %}
+        {% for x in g.vorhanden %}{{ x.vorname }} ({{ x.klasse }}, vorhanden){% if not loop.last %}, {% endif %}{% endfor %}</span></label>
+    {% endfor %}
+  </fieldset>
+  {% endif %}
+  {% if v.familien_spalte %}<p class="leise">Familien aus der Spalte „familie“: {{ v.familien_spalte|join(', ') }}</p>{% endif %}
+  <h2>Neue Kinder</h2>
+  <div class="tabelle-wrap"><table>
+    <thead><tr><th>Zeile</th><th>Klasse</th><th>Nachname</th><th>Vorname</th><th>Familie</th></tr></thead>
+    {% for z in v.neu %}<tr><td>{{ z.zeile }}</td><td>{{ z.klasse }}</td><td>{{ z.nachname }}</td><td>{{ z.vorname }}</td><td>{{ z.familie }}</td></tr>
+    {% else %}<tr><td colspan="5" class="leise">Keine neuen Kinder.</td></tr>{% endfor %}
+  </table></div>
+  {% if v.duplikate %}
+  <details class="aufklapp"><summary>{{ v.duplikate|length }} bereits vorhandene werden übersprungen</summary>
+    <ul>{% for z in v.duplikate %}<li>{{ z.klasse }}: {{ z.nachname }}, {{ z.vorname }}</li>{% endfor %}</ul></details>
+  {% endif %}
+  <p class="aktionen"><button type="submit" {% if not v.neu %}disabled{% endif %}>Import bestätigen</button>
+    <a href="{{ url_for('stammdaten.csv_import') }}">Abbrechen</a></p>
+</form>
+{% endblock %}

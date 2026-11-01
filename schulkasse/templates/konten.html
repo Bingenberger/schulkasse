@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Konten{% endblock %}
+{% block content %}
+<h1>Bankkonten</h1>
+<p class="leise">Nur Umsätze für hier angelegte Konten können importiert werden. Der Kontoinhaber erscheint als Empfänger im QR-Code.</p>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Bezeichnung</th><th>IBAN</th><th>BIC</th><th>Inhaber</th><th class="r">Umsätze</th><th>Kontoführung ab</th><th>Status</th><th></th></tr></thead>
+  {% for k in konten %}
+  <tr><td><a href="{{ url_for('verwaltung.konten', id=k.id) }}">{{ k.bezeichnung }}</a></td><td class="mono">{{ k.iban|iban }}</td><td>{{ k.bic or '' }}</td>
+    <td>{{ k.inhaber }}</td><td class="r">{{ k.umsaetze }}</td>
+    <td>{{ k.beginn_datum|datum if k.beginn_datum else '–' }}</td><td>{{ 'aktiv' if k.aktiv else 'inaktiv' }}</td>
+    <td><a href="{{ url_for('verwaltung.anfangsbestand', konto_id=k.id) }}">Kontoführung &amp; Anfangsbestand</a></td></tr>
+  {% else %}<tr><td colspan="8" class="leise">Noch kein Konto angelegt.</td></tr>{% endfor %}
+</table></div>
+
+<h2>{{ 'Konto bearbeiten' if k else 'Konto anlegen' }}</h2>
+<form method="post" class="formular karte" action="{{ url_for('verwaltung.konten') }}">
+  {{ csrf() }}{% if k %}<input type="hidden" name="id" value="{{ k.id }}">{% endif %}
+  <div class="zeile">
+    <div class="feld"><label for="bezeichnung">Bezeichnung</label><input id="bezeichnung" name="bezeichnung" value="{{ k.bezeichnung if k else '' }}" placeholder="Schulkonto" required></div>
+    <div class="feld"><label for="inhaber">Kontoinhaber (Empfänger im QR-Code)</label><input id="inhaber" name="inhaber" maxlength="70" value="{{ k.inhaber if k else '' }}" required></div>
+  </div>
+  <div class="zeile">
+    <div class="feld"><label for="iban">IBAN</label><input id="iban" name="iban" class="mono" value="{{ k.iban|iban if k else '' }}" required></div>
+    <div class="feld"><label for="bic">BIC</label><input id="bic" name="bic" class="mono" value="{{ k.bic or '' if k else '' }}"></div>
+  </div>
+  <div class="zeile">
+    <div class="feld"><label for="eroeffnungssaldo">Kontostand vor dem ersten importierten Umsatz</label>
+      <input id="eroeffnungssaldo" name="eroeffnungssaldo" inputmode="decimal" value="{{ format_cent(k.eroeffnungssaldo_cent, False) if k and k.eroeffnungssaldo_cent is not none else '' }}">
+      <span class="hilfe">Wird beim ersten Import automatisch aus der Datei übernommen. Nur ändern, wenn später ältere Auszüge nachimportiert werden.</span></div>
+    <div class="feld"><label for="eroeffnungssaldo_datum">Stand</label><input id="eroeffnungssaldo_datum" type="date" name="eroeffnungssaldo_datum" value="{{ k.eroeffnungssaldo_datum or '' if k else '' }}"></div>
+  </div>
+  <div class="feld"><label for="aktiv">Status</label>
+    <select id="aktiv" name="aktiv"><option value="1">aktiv</option><option value="0" {% if k and not k.aktiv %}selected{% endif %}>inaktiv</option></select></div>
+  <div class="aktionen"><button type="submit">Speichern</button>{% if k %}<a href="{{ url_for('verwaltung.konten') }}">Neues Konto</a>{% endif %}</div>
+</form>
+{% endblock %}

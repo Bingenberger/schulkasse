@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Posten anlegen{% endblock %}
+{% block content %}
+<h1>Posten anlegen <small>{{ p.bezeichnung }}</small></h1>
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="zeile">
+    <div class="feld"><label for="richtung">Richtung</label>
+      <select id="richtung" name="richtung">
+        <option value="eingang" {% if werte.richtung != 'ausgang' %}selected{% endif %}>Eingang (wir erwarten Geld)</option>
+        <option value="ausgang" {% if werte.richtung == 'ausgang' %}selected{% endif %}>Ausgang (wir zahlen)</option>
+      </select></div>
+    <div class="feld"><label for="kategorie">Kategorie</label>
+      <select id="kategorie" name="kategorie">
+        {% for k, t in kategorien.items() %}<option value="{{ k }}" {% if werte.kategorie == k or (not werte.kategorie and k == ('erstattung' if p.typ == 'vorkasse' else 'elternbeitrag')) %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select></div>
+  </div>
+  <div class="feld"><label for="bezeichnung">Bezeichnung</label>
+    <input id="bezeichnung" name="bezeichnung" required value="{{ werte.bezeichnung or '' }}" placeholder="z. B. Erstattung Stadtkasse Bestellung 4711"></div>
+  <div class="feld"><label for="kind_id">Kind (nur bei Elternbeitrag)</label>
+    <select id="kind_id" name="kind_id"><option value="">– kein Kind –</option>
+      {% for k in kinder %}<option value="{{ k.id }}" {% if werte.kind_id == k.id|string %}selected{% endif %}>{{ k.klasse }} · {{ k.nachname }}, {{ k.vorname }}</option>{% endfor %}
+    </select></div>
+  <div class="zeile">
+    <div class="feld"><label for="betrag">Sollbetrag</label><input id="betrag" name="betrag" inputmode="decimal" required value="{{ werte.betrag or '' }}"></div>
+    <div class="feld"><label for="faellig_am">Fällig am</label><input id="faellig_am" type="date" name="faellig_am" value="{{ werte.faellig_am or '' }}"></div>
+  </div>
+  <label class="check"><input type="checkbox" name="zahlcode" value="1" {% if werte.zahlcode == '1' %}checked{% endif %}> Zahlcode vergeben (nur bei Eingängen; bei Elternbeiträgen immer)</label>
+  <div class="feld"><label for="notiz">Notiz</label><input id="notiz" name="notiz" value="{{ werte.notiz or '' }}"></div>
+  <div class="aktionen"><button type="submit">Anlegen</button><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">Abbrechen</a></div>
+</form>
+{% endblock %}

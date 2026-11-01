@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge, betrag %}
+{% block title %}Umsatz {{ u.buchungsdatum|datum }}{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Umsatz vom {{ u.buchungsdatum|datum }} {{ betrag(u.betrag_cent) }}</h1>
+  <div>{{ badge('PDNG' if u.status == 'PDNG' else u.zuordnungsstatus) }}</div>
+</div>
+
+<div class="karte">
+  <div class="tabelle-wrap"><table>
+    <tr><th>Gegenseite</th><td>{{ u.gegen_name or '–' }}</td></tr>
+    <tr><th>IBAN</th><td class="mono">{{ u.gegen_iban|iban if u.gegen_iban else '–' }}</td></tr>
+    <tr><th>Verwendungszweck</th><td class="zweck">{{ u.verwendungszweck or '–' }}</td></tr>
+    {% if u.verwendungszweck_roh and u.verwendungszweck_roh != u.verwendungszweck %}
+    <tr><th>Rohtext</th><td class="zweck mono">{{ u.verwendungszweck_roh }}</td></tr>{% endif %}
+    <tr><th>Valuta</th><td>{{ u.valutadatum|datum }}</td></tr>
+    <tr><th>Konto</th><td>{{ u.konto }}</td></tr>
+    <tr><th>Referenzen</th><td class="mono">{{ u.bank_ref or '' }} {{ u.end_to_end_id or '' }}</td></tr>
+    <tr><th>Geschäftsvorfall</th><td>{{ u.geschaeftsvorfall or '–' }}</td></tr>
+    <tr><th>Import</th><td>{{ u.dateiname }} ({{ u.erstellt_am|zeit }})</td></tr>
+  </table></div>
+</div>
+
+<h2>Zuordnungen</h2>
+{% if zuordnungen %}
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Posten</th><th class="r">Betrag</th><th>Quelle</th><th>Erstellt</th><th></th></tr></thead>
+  <tbody>
+  {% for z in zuordnungen %}
+  <tr class="{{ 'storniert' if z.storniert }}">
+    <td><a href="{{ url_for('projekte.detail', projekt_id=z.projekt_id) }}">{{ z.projekt }}</a></td>
+    <td>{% if z.offener_posten_id %}<a href="{{ url_for('projekte.posten_detail', posten_id=z.offener_posten_id) }}">{{ z.zahlcode or z.posten }}</a>
+      {% if z.vorname %}{{ z.vorname }} {{ z.nachname }}{% endif %}{% else %}–{% endif %}</td>
+    <td class="r">{{ betrag(z.betrag_cent) }}</td>
+    <td>{{ z.quelle }}{% if z.konfidenz %} ({{ z.konfidenz }} %){% endif %}{% if z.notiz %}<br><small>{{ z.notiz }}</small>{% endif %}</td>
+    <td>{{ z.von }}, {{ z.erstellt_am|zeit }}</td>
+    <td class="keep">
+      {% if z.storniert %}
+        {{ badge('storniert') }} <small>{{ z.storno_von }}, {{ z.storniert_am|zeit }}: {{ z.storno_grund }}</small>
+      {% elif z.projekt_status == 'offen' %}
+      <details class="aufklapp"><summary>Stornieren …</summary>
+        <form method="post" action="{{ url_for('umsaetze.storno', zuordnung_id=z.id) }}" class="zeile">
+          {{ csrf() }}
+          <div class="feld"><label for="sg-{{ z.id }}">Begründung (Pflicht)</label><input id="sg-{{ z.id }}" name="grund" required></div>
+          <button type="submit" class="gefahr">Stornieren</button>
+        </form>
+      </details>
+      <details class="aufklapp"><summary>Beleg …</summary>
+        <form method="post" action="{{ url_for('projekte.beleg_hochladen') }}" enctype="multipart/form-data" class="zeile">
+          {{ csrf() }}<input type="hidden" name="zuordnung_id" value="{{ z.id }}">
+          <input type="hidden" name="zurueck" value="{{ request.path }}">
+          <div class="feld"><label for="bl-{{ z.id }}">PDF/JPG/PNG</label><input id="bl-{{ z.id }}" type="file" name="datei" accept=".pdf,.jpg,.jpeg,.png" required></div>
+          <button type="submit" class="zweit">Hochladen</button>
+        </form>
+      </details>
+      {% endif %}
+    </td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}<p class="leise">Noch keine Zuordnungen.</p>{% endif %}
+
+{% if belege %}
+<h3>Belege</h3>
+<ul>{% for b in belege %}<li><a href="{{ url_for('projekte.beleg', beleg_id=b.id) }}">{{ b.dateiname }}</a></li>{% endfor %}</ul>
+{% endif %}
+
+{% if u.vor_beginn and u.status == 'BOOK' %}
+<p class="hinweis">Dieser Umsatz liegt vor dem Beginn der Kontoführung ({{ u.beginn_datum|datum }}). Er wird nicht
+  zugeordnet – sein Betrag steckt im <a href="{{ url_for('verwaltung.anfangsbestand', konto_id=u.konto_id) }}">Anfangsbestand</a>,
+  der dort auf die Projekte verteilt wird.</p>
+{% elif u.status == 'PDNG' %}
+<p class="hinweis">Dieser Umsatz ist nur vorgemerkt und kann erst nach der Buchung zugeordnet werden.</p>
+{% elif u.zuordnungsstatus == 'ignoriert' %}
+<div class="hinweis">
+  <p>Dieser Umsatz wird ignoriert{% for i in ignoriert if not i.aufgehoben %}: „{{ i.grund }}“ ({{ i.von }}, {{ i.erstellt_am|zeit }}){% endfor %}.</p>
+  <form method="post" action="{{ url_for('umsaetze.ignorieren_aufheben_view', umsatz_id=u.id) }}">
+    {{ csrf() }}<button type="submit" class="zweit">Ignorieren aufheben</button></form>
+</div>
+{% else %}
+  {% if vorschlaege %}
+  <h2>Vorschläge</h2>
+  {% for x in vorschlaege %}
+  <div class="vorschlag">
+    <span class="konf">{{ x.v.konfidenz }} %</span>
+    <span class="teile"><strong>{{ x.v.regel }}</strong>:
+      {% for t in x.teile %}{% if not loop.first %} + {% endif %}{{ t.betrag_cent|euro }} → {{ t.zahlcode or t.posten or t.projekt }}
+      {% if t.vorname %}{{ t.vorname }} {{ t.nachname }}{% endif %}{% endfor %}<br><small>{{ x.v.hinweis }}</small></span>
+    <form method="post" action="{{ url_for('umsaetze.vorschlag_uebernehmen', vorschlag_id=x.v.id) }}">
+      {{ csrf() }}<input type="hidden" name="zurueck" value="{{ request.path }}"><button type="submit" class="klein">Übernehmen</button></form>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  {% if rest > 0 %}
+  <h2>Zuordnen / aufteilen</h2>
+  <form method="post" action="{{ url_for('umsaetze.zuordnen_manuell', umsatz_id=u.id) }}" class="karte aufteilung"
+        data-rest="{{ rest }}" data-richtung="{{ 'ein' if u.betrag_cent > 0 else 'aus' }}"
+        data-posten-url="{{ url_for('umsaetze.api_posten', projekt_id=0) }}" data-code-url="{{ url_for('umsaetze.api_zahlcode') }}">
+    {{ csrf() }}
+    <div class="zeile">
+      <div class="feld"><label for="zc">Zahlcode eingeben und Enter drücken</label>
+        <input id="zc" data-zahlcode placeholder="z. B. KF4A-0042"><span class="hilfe code-hinweis" aria-live="polite"></span></div>
+      <p><span class="restanzeige" aria-live="polite">Noch zu verteilen: {{ rest|euro }}</span></p>
+    </div>
+    <div class="teile">
+      <div class="teilzeile">
+        <div class="feld"><label for="p0">Projekt</label>
+          <select id="p0" name="projekt_id"><option value="">– Projekt wählen –</option>
+            {% for p in projekte %}<option value="{{ p.id }}">{{ p.kurzcode }} – {{ p.bezeichnung }}</option>{% endfor %}</select></div>
+        <div class="feld"><label for="po0">Posten</label>
+          <select id="po0" name="posten_id"><option value="">– ohne Posten (nur Projekt) –</option></select></div>
+        <div class="feld"><label for="b0">Betrag</label><input id="b0" name="betrag" inputmode="decimal" value="{{ format_cent(rest, False) }}"></div>
+        <button type="button" class="zweit klein entfernen">Entfernen</button>
+      </div>
+    </div>
+    <template>
+      <div class="teilzeile">
+        <div class="feld"><label>Projekt</label>
+          <select name="projekt_id" aria-label="Projekt"><option value="">– Projekt wählen –</option>
+            {% for p in projekte %}<option value="{{ p.id }}">{{ p.kurzcode }} – {{ p.bezeichnung }}</option>{% endfor %}</select></div>
+        <div class="feld"><label>Posten</label>
+          <select name="posten_id" aria-label="Posten"><option value="">– ohne Posten (nur Projekt) –</option></select></div>
+        <div class="feld"><label>Betrag</label><input name="betrag" inputmode="decimal" aria-label="Betrag"></div>
+        <button type="button" class="zweit klein entfernen">Entfernen</button>
+      </div>
+    </template>
+    <div class="aktionen">
+      <button type="button" class="zweit hinzu">+ weiteren Teilbetrag</button>
+    </div>
+    <div class="feld"><label for="notiz">Notiz (optional)</label><input id="notiz" name="notiz"></div>
+    <div><button type="submit">Zuordnung speichern</button></div>
+    <p class="leise">Ein Rest darf offen bleiben – der Umsatz steht dann auf „teilweise“.</p>
+  </form>
+
+  {% set ab = u.betrag_cent < 0 %}
+  <details class="aufklapp karte" {% if not projekte %}hidden{% endif %}>
+    <summary>Passenden Posten gibt es noch nicht? Neuen Posten anlegen und zuordnen …</summary>
+    <form method="post" action="{{ url_for('umsaetze.posten_anlegen_zuordnen', umsatz_id=u.id) }}" class="formular">
+      {{ csrf() }}
+      <p class="leise">Legt im Projekt einen {{ 'Ausgangsposten' if ab else 'Eingangsposten' }} über den Betrag an und
+        ordnet diesen Umsatz sofort zu.</p>
+      <div class="zeile">
+        <div class="feld"><label for="np-projekt">Projekt</label>
+          <select id="np-projekt" name="projekt_id" required><option value="">– Projekt wählen –</option>
+            {% for p in projekte %}<option value="{{ p.id }}">{{ p.kurzcode }} – {{ p.bezeichnung }}</option>{% endfor %}</select></div>
+        <div class="feld"><label for="np-kategorie">Kategorie</label>
+          <select id="np-kategorie" name="kategorie">
+            {% for k, t in kategorien.items() %}<option value="{{ k }}" {% if k == ('erstattung' if ab else 'sonstiges') %}selected{% endif %}>{{ t }}</option>{% endfor %}
+          </select></div>
+      </div>
+      <div class="zeile">
+        <div class="feld"><label for="np-bez">Bezeichnung</label>
+          <input id="np-bez" name="bezeichnung" required value="{{ u.gegen_name or '' }}"
+            placeholder="{{ 'z. B. Anzahlung Jugendherberge' if ab else 'z. B. Zuschuss Förderverein' }}"></div>
+        <div class="feld"><label for="np-betrag">Betrag</label>
+          <input id="np-betrag" name="betrag" inputmode="decimal" required value="{{ format_cent(rest, False) }}"></div>
+      </div>
+      <label class="check"><input type="checkbox" name="gegenposten" value="1">
+        {% if ab %}Das Geld kommt zurück (z. B. Vorkasse, Auslage, Kaution): zusätzlich einen offenen
+          <strong>Eingangsposten</strong> „Rückzahlung“ über denselben Betrag anlegen.
+        {% else %}Das Geld wird wieder ausgezahlt (z. B. Erstattung an Eltern): zusätzlich einen offenen
+          <strong>Ausgangsposten</strong> „Auszahlung“ über denselben Betrag anlegen.{% endif %}</label>
+      <div class="feld"><label for="np-notiz">Notiz (optional)</label><input id="np-notiz" name="notiz"></div>
+      <div><button type="submit" class="zweit">Posten anlegen und zuordnen</button></div>
+    </form>
+  </details>
+  {% endif %}
+
+  {% if u.zuordnungsstatus == 'offen' %}
+  <details class="aufklapp"><summary>Umsatz ignorieren (z. B. Bankgebühr, Zinsen, Fehlbuchung) …</summary>
+    <form method="post" action="{{ url_for('umsaetze.ignorieren_view', umsatz_id=u.id) }}" class="zeile">
+      {{ csrf() }}
+      <div class="feld"><label for="grund">Begründung (Pflicht)</label><input id="grund" name="grund" required></div>
+      <button type="submit" class="zweit">Ignorieren</button>
+    </form>
+  </details>
+  {% endif %}
+{% endif %}
+{% endblock %}

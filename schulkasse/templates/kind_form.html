@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge %}
+{% block title %}{{ 'Kind bearbeiten' if k else 'Kind anlegen' }}{% endblock %}
+{% block content %}
+<h1>{% if k %}{{ k.vorname }} {{ k.nachname }} <small>Klasse {{ k.klasse }}</small>{% else %}Kind anlegen{% endif %}</h1>
+{% if k and k.anonymisiert %}<p class="hinweis">Dieser Datensatz wurde anonymisiert und kann nicht mehr bearbeitet werden.</p>{% endif %}
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="zeile">
+    <div class="feld"><label for="vorname">Vorname</label><input id="vorname" name="vorname" value="{{ werte.vorname or '' }}" required></div>
+    <div class="feld"><label for="nachname">Nachname</label><input id="nachname" name="nachname" value="{{ werte.nachname or '' }}" required></div>
+  </div>
+  <div class="zeile">
+    <div class="feld"><label for="klasse_id">Klasse</label>
+      <select id="klasse_id" name="klasse_id" required>
+        {% for kl in klassen %}<option value="{{ kl.id }}" {% if werte.klasse_id|string == kl.id|string %}selected{% endif %}>{{ kl.bezeichnung }} ({{ kl.schuljahr }})</option>{% endfor %}
+      </select></div>
+    <div class="feld"><label for="familie_id">Familie (Geschwister)</label>
+      <select id="familie_id" name="familie_id">
+        {% if not k %}<option value="">neue Familie anlegen</option>{% else %}<option value="neu">neue eigene Familie</option>{% endif %}
+        {% for f in familien %}<option value="{{ f.id }}" {% if werte.familie_id|string == f.id|string %}selected{% endif %}>{{ f.bezeichnung }}{% if f.kinder %} ({{ f.kinder }}){% endif %}</option>{% endfor %}
+      </select></div>
+  </div>
+  {% if k %}
+  <label class="check"><input type="hidden" name="aktiv" value="0"><input type="checkbox" name="aktiv" value="1" {% if werte.aktiv|string in ('1','on') %}checked{% endif %}> aktiv (besucht die Schule)</label>
+  {% endif %}
+  <fieldset><legend>Bildung und Teilhabe / Härtefall</legend>
+    <label class="check"><input type="checkbox" name="but_status" value="1" {% if werte.but_status|string in ('1','on') %}checked{% endif %}>
+      Kosten werden über BuT/Härtefall getragen</label>
+    <div class="feld"><label for="but_notiz">Notiz (nur für die Kasse sichtbar)</label><input id="but_notiz" name="but_notiz" value="{{ werte.but_notiz or '' }}"></div>
+    <span class="hilfe">BuT-Kinder werden bei der Massenanlage übersprungen und erscheinen nie in Erinnerungslisten oder Exporten. Änderungen werden protokolliert.</span>
+  </fieldset>
+  <div class="aktionen"><button type="submit">Speichern</button><a href="{{ url_for('stammdaten.kinder') }}">Zurück</a></div>
+</form>
+
+{% if k %}
+<h2>Posten</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Zahlcode</th><th class="r">Soll</th><th class="r">Bezahlt</th><th>Status</th></tr></thead>
+  {% for p in posten %}
+  <tr><td>{{ p.projekt }}</td><td class="mono"><a href="{{ url_for('projekte.posten_detail', posten_id=p.id) }}">{{ p.zahlcode or '–' }}</a></td>
+    <td class="r">{{ p.sollbetrag_cent|euro }}</td><td class="r">{{ p.bezahlt|euro }}</td><td>{{ badge(p.status) }}</td></tr>
+  {% else %}<tr><td colspan="5" class="leise">Keine Posten.</td></tr>{% endfor %}
+</table></div>
+
+{% if geschwister %}
+<h2>Geschwister</h2>
+<ul>{% for s in geschwister %}<li><a href="{{ url_for('stammdaten.kind', kind_id=s.id) }}">{{ s.vorname }} {{ s.nachname }}</a> ({{ s.klasse }})</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Gelernte Zahler-IBANs der Familie</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>IBAN</th><th>Name</th><th class="r">Treffer</th><th>Zuletzt</th><th></th></tr></thead>
+  {% for z in ibans %}
+  <tr><td class="mono">{{ z.iban|iban }}</td><td>{{ z.zahler_name or '' }}</td><td class="r">{{ z.treffer_anzahl }}</td><td>{{ z.zuletzt_gesehen|datum }}</td>
+    <td><form method="post" action="{{ url_for('stammdaten.zahler_iban_loeschen', zid=z.id) }}">{{ csrf() }}
+      <input type="hidden" name="zurueck" value="{{ request.path }}"><button type="submit" class="zweit klein" data-confirm="Gelernte IBAN entfernen?">entfernen</button></form></td></tr>
+  {% else %}<tr><td colspan="5" class="leise">Noch keine IBAN gelernt.</td></tr>{% endfor %}
+</table></div>
+
+<details class="aufklapp"><summary>Kind löschen …</summary>
+  <p>Löschen ist nur möglich, solange keine Zahlungen zugeordnet sind. Sonst greift später der Anonymisierungslauf.</p>
+  <form method="post" action="{{ url_for('stammdaten.kind_entfernen', kind_id=k.id) }}">{{ csrf() }}
+    <button type="submit" class="gefahr" data-confirm="Kind und seine unbezahlten Posten endgültig löschen?">Endgültig löschen</button></form>
+</details>
+{% endif %}
+{% endblock %}

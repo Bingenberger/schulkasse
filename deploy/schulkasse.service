@@ -1,0 +1,29 @@
+[Unit]
+Description=Schulkasse (gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=schulkasse
+Group=schulkasse
+WorkingDirectory=/opt/schulkasse
+EnvironmentFile=/opt/schulkasse/.env
+# Bound to localhost only; nginx terminates TLS in front of it. The port comes from .env.
+ExecStart=/opt/schulkasse/.venv/bin/gunicorn --workers 3 --bind 127.0.0.1:${SCHULKASSE_PORT} --timeout 120 \
+    --access-logfile - --no-control-socket "schulkasse:create_app()"
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/schulkasse/instance
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

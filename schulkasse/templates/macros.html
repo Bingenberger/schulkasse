@@ -1,0 +1,34 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro badge(status) -%}
+{%- set texte = {
+  'offen': 'offen', 'teilweise': 'teilweise', 'erledigt': 'erledigt', 'erlassen': 'erlassen',
+  'storniert': 'storniert', 'zugeordnet': 'zugeordnet', 'ignoriert': 'ignoriert',
+  'abgeschlossen': 'abgeschlossen', 'PDNG': 'vorgemerkt', 'BOOK': 'gebucht'} -%}
+<span class="badge b-{{ status|lower }}">{{ texte.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro betrag(cent) -%}
+<span class="betrag {{ 'neg' if cent < 0 else 'pos' }}">{{ cent|euro }}</span>
+{%- endmacro %}
+
+{% macro seiten_nav(seite, seiten, args, endpoint) %}
+{% if seiten > 1 %}
+<nav class="seiten" aria-label="Seiten">
+  {% set a = args.to_dict() %}
+  {% if seite > 1 %}{% set _ = a.update({'seite': seite - 1}) %}<a href="{{ url_for(endpoint, **a) }}">« zurück</a>{% endif %}
+  <span>Seite {{ seite }} von {{ seiten }}</span>
+  {% if seite < seiten %}{% set _ = a.update({'seite': seite + 1}) %}<a href="{{ url_for(endpoint, **a) }}">weiter »</a>{% endif %}
+</nav>
+{% endif %}
+{% endmacro %}
+
+{% macro kennzahlen(kz) %}
+<dl class="kennzahlen">
+  <div><dt>Saldo</dt><dd>{{ kz.saldo|euro }}</dd></div>
+  <div><dt>Erwartete Eingänge</dt><dd>{{ kz.erwartete_eingaenge|euro }}</dd></div>
+  <div><dt>Erwartete Ausgänge</dt><dd>{{ kz.erwartete_ausgaenge|euro }}</dd></div>
+  <div><dt>Prognose</dt><dd>{{ kz.prognose|euro }}</dd></div>
+  <div><dt>Zahlungsquote</dt><dd>{% if kz.gesamt %}{{ kz.quote }} % <small>({{ kz.bezahlt }} von {{ kz.gesamt }})</small>{% else %}–{% endif %}</dd></div>
+</dl>
+{% endmacro %}

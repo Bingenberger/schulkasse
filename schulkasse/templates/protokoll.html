@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Protokoll{% endblock %}
+{% block content %}
+<h1>Protokoll</h1>
+<form class="filter" method="get">
+  <div class="feld"><label for="aktion">Aktion beginnt mit</label><input id="aktion" name="aktion" value="{{ args.aktion or '' }}" placeholder="zuordnung."></div>
+  <div class="feld"><label for="entitaet">Entität</label><input id="entitaet" name="entitaet" value="{{ args.entitaet or '' }}" placeholder="kind"></div>
+  <div class="feld"><label for="id">ID</label><input id="id" name="id" value="{{ args.id or '' }}" inputmode="numeric"></div>
+  <button type="submit">Filtern</button>
+</form>
+<div class="tabelle-wrap"><table class="protokoll">
+  <thead><tr><th>Zeitpunkt</th><th>Benutzer</th><th>Aktion</th><th>Entität</th><th class="json">Alt</th><th class="json">Neu</th><th>IP</th></tr></thead>
+  {% for r in rows %}
+  <tr><td>{{ r.zeitpunkt|zeit }}</td><td>{{ r.anzeigename or 'System' }}</td><td class="mono">{{ r.aktion }}</td>
+    <td>{{ r.entitaet }}{% if r.entitaet_id %} #{{ r.entitaet_id }}{% endif %}</td>
+    <td class="zweck mono"><small>{{ r.alt_wert or '' }}</small></td><td class="zweck mono"><small>{{ r.neu_wert or '' }}</small></td><td>{{ r.ip or '' }}</td></tr>
+  {% else %}<tr><td colspan="7" class="leise">Keine Einträge.</td></tr>{% endfor %}
+</table></div>
+<nav class="seiten">
+  {% set a = args.to_dict() %}
+  {% if seite > 1 %}{% set _ = a.update({'seite': seite - 1}) %}<a href="{{ url_for('verwaltung.protokoll', **a) }}">« neuer</a>{% endif %}
+  {% if rows|length == 200 %}{% set _ = a.update({'seite': seite + 1}) %}<a href="{{ url_for('verwaltung.protokoll', **a) }}">älter »</a>{% endif %}
+</nav>
+{% endblock %}

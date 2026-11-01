@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>{% block title %}{% endblock %}</title>
+<style>
+  @page { size: A4 {% block orientierung %}portrait{% endblock %}; margin: 16mm 14mm 18mm;
+    @bottom-left { content: "{{ cfg.fusszeile }} · Schulkasse"; font-size: 7.5pt; color: #666; }
+    @bottom-right { content: "Seite " counter(page) " von " counter(pages); font-size: 7.5pt; color: #666; } }
+  body { font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; font-size: 9pt; color: #111; }
+  h1 { font-size: 14pt; margin: 0 0 2mm; }
+  h2 { font-size: 11pt; margin: 6mm 0 2mm; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { border-bottom: 0.3pt solid #999; padding: 1.2mm 1.5mm; text-align: left; vertical-align: top; }
+  th { background: #eee; font-size: 8pt; }
+  td.r, th.r { text-align: right; white-space: nowrap; }
+  tr.storniert td { color: #777; text-decoration: line-through; }
+  tfoot td { font-weight: bold; border-top: 0.8pt solid #111; }
+  .meta { color: #444; font-size: 8pt; margin-bottom: 4mm; }
+  .kz { display: flex; gap: 4mm; margin: 3mm 0; }
+  .kz div { border: 0.4pt solid #999; padding: 2mm 3mm; }
+  .kz b { display: block; font-size: 11pt; }
+</style>
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

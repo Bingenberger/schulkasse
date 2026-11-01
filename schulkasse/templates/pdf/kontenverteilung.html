@@ -1,0 +1,32 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Geld je Projekt und Konto{% endblock %}
+{% block orientierung %}landscape{% endblock %}
+{% block body %}
+<h1>Geld je Projekt und Konto</h1>
+<div class="meta">Stand {{ heute|datum }}{% if nur_aufgeteilt %} · nur Projekte auf mehreren Konten{% endif %}</div>
+<table>
+  <thead><tr><th>Projekt</th><th>Code</th>
+    {% for k in v.konten %}<th class="r">{{ k.bezeichnung }}</th>{% endfor %}
+    {% if v.ohne_konto %}<th class="r">ohne Konto</th>{% endif %}<th class="r">Summe</th></tr></thead>
+  <tbody>
+  {% for p in v.projekte %}
+  <tr><td>{{ p.bezeichnung }}{% if p.status != 'offen' %} (abgeschlossen){% endif %}</td><td>{{ p.kurzcode }}</td>
+    {% for k in v.konten %}<td class="r">{{ p.betraege.get(k.id)|euro if p.betraege.get(k.id) else '' }}</td>{% endfor %}
+    {% if v.ohne_konto %}<td class="r">{{ p.ohne_konto|euro if p.ohne_konto else '' }}</td>{% endif %}
+    <td class="r">{{ p.summe|euro }}</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr><td colspan="2"><b>Summe Projekte</b></td>
+      {% for k in v.konten %}<td class="r"><b>{{ v.summen[k.id]|euro }}</b></td>{% endfor %}
+      {% if v.ohne_konto %}<td class="r"><b>{{ v.ohne_konto|euro }}</b></td>{% endif %}
+      <td class="r"><b>{{ v.gesamt|euro }}</b></td></tr>
+    <tr><td colspan="2">Kontostand (letzter Import)</td>
+      {% for k in v.konten %}<td class="r">{{ v.kontostand[k.id]|euro if v.kontostand[k.id] is not none else '' }}</td>{% endfor %}
+      {% if v.ohne_konto %}<td></td>{% endif %}<td></td></tr>
+    <tr><td colspan="2">noch nicht verteilt / zugeordnet</td>
+      {% for k in v.konten %}<td class="r">{{ v.differenz[k.id]|euro if v.differenz[k.id] is not none else '' }}</td>{% endfor %}
+      {% if v.ohne_konto %}<td></td>{% endif %}<td></td></tr>
+  </tfoot>
+</table>
+{% endblock %}

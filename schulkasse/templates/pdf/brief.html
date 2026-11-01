@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>{{ 'Erinnerung' if erinnerung else 'Elternbrief' }} {{ projekt.bezeichnung }}</title>
+<style>
+  @page { size: A4; margin: 15mm 18mm 15mm 20mm; }
+  body { font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; font-size: 10.5pt; color: #111; line-height: 1.4; }
+  .seite { page-break-after: always; }
+  .seite:last-child { page-break-after: auto; }
+  .kopf { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 0.6pt solid #333;
+    padding-bottom: 3mm; margin-bottom: 6mm; }
+  .kopf img { max-height: 22mm; max-width: 50mm; }
+  .briefkopf { white-space: pre-line; font-size: 9pt; text-align: right; }
+  .an { margin-bottom: 5mm; }
+  .an .kind { font-size: 12pt; font-weight: bold; }
+  .datum { text-align: right; margin-bottom: 4mm; }
+  .tldr { border: 1.4pt solid #1f5f8b; background: #eef5fa; border-radius: 2mm; padding: 3mm 4mm; margin-bottom: 5mm; }
+  .tldr h1 { font-size: 12.5pt; margin: 0 0 1.5mm; }
+  .tldr p { margin: 0.6mm 0; font-size: 11pt; }
+  .text { white-space: pre-line; margin-bottom: 5mm; }
+  /* Float instead of flex: WeasyPrint does not shrink tables inside flex items. */
+  .zahlung { border: 0.6pt solid #555; padding: 4mm; border-radius: 2mm; page-break-inside: avoid; }
+  .zahlung::after { content: ""; display: block; clear: both; }
+  .zahlung img { float: left; width: 38mm; height: 38mm; }
+  .zahlung .angaben { margin-left: 44mm; min-height: 38mm; }
+  .zahlung table { border-collapse: collapse; font-size: 10pt; table-layout: fixed; width: 100%; }
+  .zahlung th { width: 32mm; }
+  .zahlung td { overflow-wrap: anywhere; word-break: break-word; }
+  .zahlung th { text-align: left; padding: 0.8mm 3mm 0.8mm 0; font-weight: normal; color: #444; vertical-align: top; }
+  .zahlung td { padding: 0.8mm 0; font-weight: bold; }
+  .mono { font-family: "DejaVu Sans Mono", monospace; }
+  .hinweis { font-size: 9pt; color: #333; margin-top: 3mm; }
+  .kosten { font-size: 9.5pt; margin-top: 5mm; border-left: 1.2pt solid #999; padding-left: 3mm; }
+  .gruss { margin-top: 6mm; }
+</style>
+</head>
+<body>
+{% for s in seiten %}
+{% set po = s.posten %}
+<section class="seite">
+  <div class="kopf">
+    <div>{% if cfg.logo_uri %}<img src="{{ cfg.logo_uri }}" alt="Schullogo">{% else %}<strong>{{ cfg.schulname }}</strong>{% endif %}</div>
+    <div class="briefkopf">{{ cfg.briefkopf }}</div>
+  </div>
+  <div class="datum">{{ cfg.ort }}, {{ heute.strftime('%d.%m.%Y') }}</div>
+  <div class="an">An die Eltern von<br><span class="kind">{{ po.vorname }} {{ po.nachname }}</span>, Klasse {{ po.klasse }}</div>
+
+  <div class="tldr">
+    {% if erinnerung %}
+    <h1>Erinnerung: {{ projekt.bezeichnung }}</h1>
+    <p>Für {{ po.vorname }} ist noch <strong>{{ s.betrag|euro }}</strong> offen.</p>
+    <p>Bitte überweisen Sie den Betrag {% if po.faellig_am %}möglichst bald – die Frist war der <strong>{{ po.faellig_am|datum }}</strong>{% else %}möglichst bald{% endif %}.</p>
+    <p>Falls Sie in den letzten Tagen schon bezahlt haben: Vielen Dank, dann ist dieser Brief erledigt.</p>
+    {% else %}
+    <h1>Kurz gesagt: {{ projekt.bezeichnung }}</h1>
+    <p>Wir bitten um <strong>{{ s.betrag|euro }}</strong> für {{ po.vorname }}.</p>
+    <p>Bitte bis <strong>{{ po.faellig_am|datum if po.faellig_am else 'spätestens zwei Wochen nach Erhalt' }}</strong> überweisen.</p>
+    <p>Am einfachsten: QR-Code unten mit der Banking-App scannen.</p>
+    {% endif %}
+  </div>
+
+  <div class="text">{{ text }}</div>
+
+  <div class="zahlung">
+    <img src="{{ s.qr }}" alt="QR-Code für die Überweisung">
+    <div class="angaben"><table>
+      <tr><th>Empfänger</th><td>{{ s.konto.inhaber }}</td></tr>
+      <tr><th>IBAN</th><td class="mono">{{ s.konto.iban|iban }}</td></tr>
+      {% if s.konto.bic %}<tr><th>BIC</th><td class="mono">{{ s.konto.bic }}</td></tr>{% endif %}
+      <tr><th>Betrag</th><td>{{ s.betrag|euro }}</td></tr>
+      <tr><th>Verwendungszweck</th><td class="mono">{{ s.zweck }}</td></tr>
+    </table></div>
+  </div>
+  <p class="hinweis">{{ cfg.hinweis_ohne_qr }}</p>
+  <p class="kosten">{{ cfg.hinweis_kostenuebernahme }}</p>
+  <p class="gruss">Mit freundlichen Grüßen<br>{{ cfg.unterschrift }}</p>
+</section>
+{% endfor %}
+</body>
+</html>

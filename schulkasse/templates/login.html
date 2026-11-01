@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Anmelden{% endblock %}
+{% block main_class %}schmal{% endblock %}
+{% block content %}
+<div class="karte">
+  <h1>Schulkasse</h1>
+  <p class="leise">Beitrags- und Kassenbuchverwaltung</p>
+  <p>Nach dem Passwort bestätigen Sie die Anmeldung mit Ihrer Authenticator-App.</p>
+  <form method="post" class="formular">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="feld">
+      <label for="benutzername">Benutzername</label>
+      <input id="benutzername" name="benutzername" value="{{ benutzername }}" autocomplete="username" required autofocus>
+    </div>
+    <div class="feld">
+      <label for="passwort">Passwort</label>
+      <input id="passwort" type="password" name="passwort" autocomplete="current-password" required>
+    </div>
+    <button type="submit">Anmelden</button>
+  </form>
+</div>
+{% endblock %}

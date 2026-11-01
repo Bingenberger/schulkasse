@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "schulkasse"
+version = "1.0.0"
+description = "Beitrags- und Kassenbuchverwaltung für die GGS Niederkassel"
+requires-python = ">=3.12"
+dependencies = [
+    "Flask", "segno", "weasyprint", "argon2-cffi", "gunicorn", "python-dotenv", "tzdata",
+    "pyotp>=2.9,<3", "cryptography>=46,<47",
+]
+
+[project.scripts]
+schulkasse = "schulkasse.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["schulkasse*"]
+
+[tool.setuptools.package-data]
+schulkasse = ["migrations/*.sql", "templates/*.html", "templates/pdf/*.html", "static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

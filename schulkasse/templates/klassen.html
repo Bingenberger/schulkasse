@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Klassen{% endblock %}
+{% block content %}
+<h1>Klassen</h1>
+<form class="filter" method="get">
+  <div class="feld"><label for="f-sj">Schuljahr</label>
+    <select id="f-sj" name="schuljahr" data-autosubmit>
+      {% for s in schuljahre %}<option value="{{ s.id }}" {% if sj_id == s.id %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <button type="submit">Anzeigen</button>
+</form>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Klasse</th><th class="r">Aktive Kinder</th><th class="r">davon BuT</th></tr></thead>
+  {% for k in klassen %}
+  <tr><td><a href="{{ url_for('stammdaten.kinder', klasse=k.id) }}">{{ k.bezeichnung }}</a></td><td class="r">{{ k.kinder }}</td><td class="r">{{ k.but }}</td></tr>
+  {% else %}<tr><td colspan="3" class="leise">Keine Klassen.</td></tr>{% endfor %}
+</table></div>
+{% if sj_id %}
+<h2>Klasse anlegen</h2>
+<form method="post" class="zeile">
+  {{ csrf() }}<input type="hidden" name="schuljahr" value="{{ sj_id }}">
+  <div class="feld"><label for="bezeichnung">Bezeichnung</label><input id="bezeichnung" name="bezeichnung" placeholder="1a" required></div>
+  <button type="submit">Anlegen</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, betrag, seiten_nav %}
+{% block title %}Umsätze{% endblock %}
+{% block content %}
+<h1>Umsätze <small>{{ gesamt }}</small></h1>
+<form class="filter" method="get">
+  <div class="feld"><label for="q">Suche</label><input id="q" type="search" name="q" value="{{ args.q or '' }}" placeholder="Name, Zweck, Betrag"></div>
+  <div class="feld"><label for="f-konto">Konto</label>
+    <select id="f-konto" name="konto"><option value="">alle</option>
+      {% for k in konten %}<option value="{{ k.id }}" {% if args.konto == k.id|string %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}
+    </select></div>
+  <div class="feld"><label for="f-st">Status</label>
+    <select id="f-st" name="status"><option value="">alle</option>
+      {% for s, t in [('offen','offen'),('teilweise','teilweise'),('zugeordnet','zugeordnet'),('ignoriert','ignoriert'),('vorgemerkt','vorgemerkt'),('vorbeginn','vor Beginn der Kontoführung')] %}
+      <option value="{{ s }}" {% if args.status == s %}selected{% endif %}>{{ t }}</option>{% endfor %}
+    </select></div>
+  <div class="feld"><label for="f-von">von</label><input id="f-von" type="date" name="von" value="{{ args.von or '' }}"></div>
+  <div class="feld"><label for="f-bis">bis</label><input id="f-bis" type="date" name="bis" value="{{ args.bis or '' }}"></div>
+  <div class="feld"><label for="f-r">Richtung</label>
+    <select id="f-r" name="richtung"><option value="">alle</option>
+      <option value="ein" {% if args.richtung == 'ein' %}selected{% endif %}>Eingänge</option>
+      <option value="aus" {% if args.richtung == 'aus' %}selected{% endif %}>Ausgänge</option></select></div>
+  <button type="submit">Filtern</button>
+</form>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Konto</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for u in umsaetze %}
+  <tr><td><a href="{{ url_for('umsaetze.detail', umsatz_id=u.id) }}">{{ u.buchungsdatum|datum }}</a></td><td>{{ u.konto }}</td>
+    <td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td><td>{% if u.vor_beginn and u.status == 'BOOK' %}<span class="badge">vor Beginn</span>{% else %}{{ badge('PDNG' if u.status == 'PDNG' else u.zuordnungsstatus) }}{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="leise">Keine Umsätze.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{{ seiten_nav(seite, seiten, args, 'umsaetze.liste') }}
+{% endblock %}

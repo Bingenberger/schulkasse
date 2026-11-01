@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Zwei-Faktor-Anmeldung{% endblock %}
+{% block main_class %}{{ 'inhalt' if modus == 'verwalten' else 'schmal' }}{% endblock %}
+{% block content %}
+<div class="karte{{ ' eng' if modus == 'verwalten' }}">
+{% if modus == 'codes' %}
+  <h1>Wiederherstellungscodes sichern</h1>
+  <p>Mit diesen Codes können Sie sich anmelden, wenn Ihr Smartphone verloren geht.
+    Jeder Code funktioniert einmal, zusammen mit Ihrem Passwort.</p>
+  <p>Speichern Sie die Codes jetzt in Ihrem Passwortmanager oder bewahren Sie einen Ausdruck sicher auf.
+    Nach dem Fortfahren werden sie nicht erneut angezeigt.</p>
+  <ul class="codes" aria-label="Wiederherstellungscodes">{% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+  <form method="post" class="formular">{{ csrf() }}
+    <label class="check"><input type="checkbox" name="gesichert" value="1" required> Ich habe die Codes sicher gespeichert.</label>
+    <button type="submit">Weiter zur Schulkasse</button>
+  </form>
+{% elif modus == 'gesperrt' %}
+  <h1>Anmeldung vorübergehend gesperrt</h1>
+  <p>Bitte warten Sie 15 Minuten und melden Sie sich dann erneut an.</p>
+{% else %}
+  <h1>{% if modus == 'einrichten' %}Authenticator einrichten{% elif modus == 'verwalten' %}Zwei-Faktor-Sicherheit{% else %}Zweiter Anmeldeschritt{% endif %}</h1>
+  {% if modus == 'einrichten' %}
+    <p>Scannen Sie diesen QR-Code mit einer Authenticator-App. Geben Sie anschließend den sechsstelligen Code ein.</p>
+    <img src="{{ qr }}" width="240" height="240" alt="QR-Code zur Einrichtung Ihrer Authenticator-App">
+    <details><summary>Schlüssel manuell eingeben</summary><p><code>{{ secret }}</code></p>
+      <p>Zeitbasiert (TOTP), 6 Stellen, 30 Sekunden, SHA-1.</p></details>
+  {% elif modus == 'verwalten' %}
+    <p>Die Zwei-Faktor-Anmeldung ist aktiv und verpflichtend. Zum Wechseln der App oder Erneuern
+      der Wiederherstellungscodes bestätigen Sie Ihr Passwort und einen aktuellen Sicherheitscode.</p>
+  {% else %}
+    <p>Geben Sie den Code aus Ihrer Authenticator-App oder einen unbenutzten Wiederherstellungscode ein.</p>
+  {% endif %}
+  <form method="post" class="formular">{{ csrf() }}
+    {% if modus == 'verwalten' %}<div class="feld"><label for="passwort">Passwort</label>
+      <input type="password" id="passwort" name="passwort" autocomplete="current-password" required autofocus></div>{% endif %}
+    <div class="feld"><label for="code">{% if modus == 'einrichten' %}Authenticator-Code{% else %}Sicherheitscode{% endif %}</label>
+      <input id="code" name="code" autocomplete="one-time-code" maxlength="32" required{% if modus != 'verwalten' %} autofocus{% endif %}
+        {% if modus == 'einrichten' %}inputmode="numeric" pattern="[0-9]{6}"{% endif %}></div>
+    {% if modus == 'verwalten' %}
+      <div class="aktionen">
+        <button name="aktion" value="codes">Neue Wiederherstellungscodes</button>
+        <button name="aktion" value="wechseln" class="zweit">Authenticator wechseln</button>
+      </div>
+    {% else %}<button type="submit">{% if modus == 'einrichten' %}Einrichtung bestätigen{% else %}Anmelden{% endif %}</button>{% endif %}
+  </form>
+{% endif %}
+{% if modus != 'verwalten' %}
+  <form method="post" action="{{ url_for('auth.logout') }}" class="abbrechen">{{ csrf() }}<button class="link" type="submit">Abbrechen und abmelden</button></form>
+{% endif %}
+</div>
+{% endblock %}

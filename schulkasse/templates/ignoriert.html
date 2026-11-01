@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "macros.html" import betrag %}
+{% block title %}Ignorierte Umsätze{% endblock %}
+{% block content %}
+<h1>Ignorierte Umsätze</h1>
+<p class="leise">Diese Umsätze gehören zu keinem Projekt und zählen für die Kontrollrechnung als erledigt.</p>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th>Begründung</th><th>Von</th></tr></thead>
+  {% for u in umsaetze %}
+  <tr><td><a href="{{ url_for('umsaetze.detail', umsatz_id=u.id) }}">{{ u.buchungsdatum|datum }}</a></td>
+    <td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td><td>{{ u.grund }}</td><td>{{ u.von }}, {{ u.ignoriert_am|zeit }}</td></tr>
+  {% else %}<tr><td colspan="6" class="leise">Keine ignorierten Umsätze.</td></tr>{% endfor %}
+  {% if umsaetze %}<tfoot><tr><td colspan="3">Summe</td><td class="r">{{ umsaetze|sum(attribute='betrag_cent')|euro }}</td><td colspan="2"></td></tr></tfoot>{% endif %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Überzahlungen{% endblock %}
+{% from "macros.html" import csrf %}
+{% block content %}
+<h1>Überzahlungen</h1>
+<p class="leise">Posten, auf die mehr gezahlt wurde als verlangt. Es erfolgt keine automatische Rückerstattung.
+  Ist der Fall geklärt – zurückerstattet, als Spende behalten, Betrag umgebucht oder Sollbetrag angepasst –,
+  können Sie ihn hier abhaken. An den Beträgen ändert sich dadurch nichts.</p>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Zahlcode</th><th>Kind / Bezeichnung</th><th class="r">Soll</th><th class="r">Bezahlt</th><th class="r">Differenz</th><th></th></tr></thead>
+  {% for r in rows %}
+  <tr><td>{{ r.projekt }}</td><td class="mono"><a href="{{ url_for('projekte.posten_detail', posten_id=r.id) }}">{{ r.zahlcode or '#' ~ r.id }}</a></td>
+    <td>{% if r.vorname %}{{ r.vorname }} {{ r.nachname }} ({{ r.klasse }}){% else %}{{ r.bezeichnung }}{% endif %}</td>
+    <td class="r">{{ r.sollbetrag_cent|euro }}</td><td class="r">{{ r.bezahlt|euro }}</td><td class="r"><strong>{{ (r.bezahlt - r.sollbetrag_cent)|euro }}</strong></td>
+    <td class="keep">
+      <details class="aufklapp"><summary>Als geklärt markieren …</summary>
+        <form method="post" action="{{ url_for('projekte.posten_ueberzahlung', posten_id=r.id) }}" class="zeile">
+          {{ csrf() }}<input type="hidden" name="zurueck" value="{{ request.path }}">
+          <div class="feld"><label for="ug-{{ r.id }}">Wie wurde es geklärt? (Pflicht)</label>
+            <input id="ug-{{ r.id }}" name="grund" required placeholder="z. B. zurückerstattet am 01.10., als Spende behalten"></div>
+          <button type="submit" class="zweit">Als geklärt markieren</button>
+        </form>
+      </details>
+    </td></tr>
+  {% else %}<tr><td colspan="7" class="leise">Keine offenen Überzahlungen.</td></tr>{% endfor %}
+</table></div>
+
+{% if geklaert %}
+<h2>Geklärt</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Zahlcode</th><th>Kind / Bezeichnung</th><th class="r">Differenz</th><th>Geklärt</th><th></th></tr></thead>
+  {% for r in geklaert %}
+  <tr><td>{{ r.projekt }}</td><td class="mono"><a href="{{ url_for('projekte.posten_detail', posten_id=r.id) }}">{{ r.zahlcode or '#' ~ r.id }}</a></td>
+    <td>{% if r.vorname %}{{ r.vorname }} {{ r.nachname }} ({{ r.klasse }}){% else %}{{ r.bezeichnung }}{% endif %}</td>
+    <td class="r">{{ r.ueberzahlung_geklaert_cent|euro }}</td>
+    <td>{{ r.ueberzahlung_grund }} <small class="leise">({{ r.geklaert_von }}, {{ r.ueberzahlung_geklaert_am|zeit }})</small></td>
+    <td class="keep">
+      <form method="post" action="{{ url_for('projekte.posten_ueberzahlung', posten_id=r.id) }}">
+        {{ csrf() }}<input type="hidden" name="zurueck" value="{{ request.path }}"><input type="hidden" name="aktion" value="aufheben">
+        <button type="submit" class="zweit klein">Klärung aufheben</button></form>
+    </td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

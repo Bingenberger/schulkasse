@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Benutzer{% endblock %}
+{% block content %}
+<h1>Benutzer</h1>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Benutzername</th><th>Name</th><th>Rolle</th><th>Status</th><th>Letzte Anmeldung</th></tr></thead>
+  {% for b in benutzer %}
+  <tr><td><a href="{{ url_for('verwaltung.benutzer_bearbeiten', bid=b.id) }}">{{ b.benutzername }}</a></td><td>{{ b.anzeigename }}</td>
+    <td>{{ ROLLEN[b.rolle] }}</td><td>{{ 'aktiv' if b.aktiv else 'gesperrt' }}</td><td>{{ b.letzter_login|zeit }}</td></tr>
+  {% endfor %}
+</table></div>
+<h2>Benutzer anlegen</h2>
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="zeile">
+    <div class="feld"><label for="benutzername">Benutzername</label><input id="benutzername" name="benutzername" value="{{ werte.benutzername or '' }}" required autocomplete="off"></div>
+    <div class="feld"><label for="anzeigename">Anzeigename</label><input id="anzeigename" name="anzeigename" value="{{ werte.anzeigename or '' }}" required></div>
+  </div>
+  <div class="zeile">
+    <div class="feld"><label for="rolle">Rolle</label>
+      <select id="rolle" name="rolle">{% for k, t in ROLLEN.items() %}<option value="{{ k }}" {% if werte.rolle == k or (not werte.rolle and k == 'lehrkraft') %}selected{% endif %}>{{ t }}</option>{% endfor %}</select></div>
+    <div class="feld"><label for="passwort">Startpasswort</label><input id="passwort" type="password" name="passwort" minlength="12" required autocomplete="new-password">
+      <span class="hilfe">Mindestens 12 Zeichen. Bitte persönlich übergeben.</span></div>
+  </div>
+  <div><button type="submit">Anlegen</button></div>
+</form>
+{% endblock %}

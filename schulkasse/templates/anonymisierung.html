@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Anonymisierung{% endblock %}
+{% block content %}
+<h1>Anonymisierungslauf</h1>
+<p>Buchungsbelege werden zehn Jahre aufbewahrt, personenbezogene Schülerdaten dagegen gelöscht, sobald der Zweck entfällt.
+  Der Lauf erfasst abgeschlossene Projekte, deren Abschluss mehr als {{ frist }} Tage zurückliegt (vor dem {{ k.grenze|datum }}),
+  und nur Kinder, die die Schule verlassen haben (inaktiv) und in keinem jüngeren Projekt vorkommen.</p>
+<ul>
+  <li>Vor- und Nachname werden durch „Gelöscht #ID“ ersetzt,</li>
+  <li>Name und IBAN der Zahlenden werden aus den betroffenen Umsätzen entfernt, Kindernamen im Verwendungszweck geschwärzt,</li>
+  <li>gelernte Zahler-IBANs der betroffenen Familien werden gelöscht,</li>
+  <li>Beträge, Daten, Zahlcodes und Zuordnungen bleiben unverändert – die Kontrollrechnung ändert sich nicht.</li>
+</ul>
+
+<dl class="kennzahlen">
+  <div><dt>Projekte</dt><dd>{{ k.projekte|length }}</dd></div>
+  <div><dt>Kinder</dt><dd>{{ k.kinder|length }}</dd></div>
+  <div><dt>Umsätze</dt><dd>{{ k.umsaetze|length }}</dd></div>
+  <div><dt>Gelernte IBANs</dt><dd>{{ k.zahler_iban|length }}</dd></div>
+</dl>
+{% if k.projekte %}
+<details class="aufklapp"><summary>Betroffene Projekte</summary>
+  <ul>{% for p in k.projekte %}<li>{{ p.bezeichnung }} ({{ p.kurzcode }}), abgeschlossen am {{ p.abgeschlossen_am|datum }}</li>{% endfor %}</ul></details>
+{% endif %}
+{% if k.kinder %}
+<details class="aufklapp"><summary>Betroffene Kinder</summary>
+  <ul>{% for x in k.kinder %}<li>{{ x.nachname }}, {{ x.vorname }} ({{ x.klasse }})</li>{% endfor %}</ul></details>
+{% endif %}
+
+{% if k.kinder or k.umsaetze %}
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="feld"><label for="bestaetigung">Zur Bestätigung ANONYMISIEREN eingeben</label><input id="bestaetigung" name="bestaetigung" autocomplete="off" required></div>
+  <div><button type="submit" class="gefahr">Anonymisierung ausführen</button></div>
+  <p class="leise">Der Vorgang ist nicht umkehrbar und wird protokolliert. Vorher eine Sicherung erstellen (<code>schulkasse backup</code>).</p>
+</form>
+{% else %}
+<p class="hinweis info">Derzeit gibt es nichts zu anonymisieren.</p>
+{% endif %}
+{% endblock %}

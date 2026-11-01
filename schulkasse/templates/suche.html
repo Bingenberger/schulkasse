@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, betrag %}
+{% block title %}Suche{% endblock %}
+{% block content %}
+<h1>Suche</h1>
+<form class="filter" method="get" role="search">
+  <div class="feld"><label for="q">Suchbegriff</label>
+    <input id="q" type="search" name="q" value="{{ q }}" placeholder="Name, Verwendungszweck, Zahlcode oder Betrag" autofocus></div>
+  <button type="submit">Suchen</button>
+</form>
+{% if q %}
+  {% if posten %}
+  <h2>Offene Posten ({{ posten|length }})</h2>
+  <div class="tabelle-wrap"><table>
+    <thead><tr><th>Zahlcode</th><th>Kind / Bezeichnung</th><th>Projekt</th><th class="r">Soll</th><th>Status</th></tr></thead>
+    {% for p in posten %}
+    <tr><td class="mono"><a href="{{ url_for('projekte.posten_detail', posten_id=p.id) }}">{{ p.zahlcode or '–' }}</a></td>
+      <td>{% if p.vorname %}{{ p.vorname }} {{ p.nachname }}{% else %}{{ p.bezeichnung }}{% endif %}</td>
+      <td>{{ p.projekt }}</td><td class="r">{{ p.sollbetrag_cent|euro }}</td><td>{{ badge(p.status) }}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% endif %}
+  <h2>Umsätze ({{ treffer|length }}{% if treffer|length == 200 %}+{% endif %})</h2>
+  {% if treffer %}
+  <div class="tabelle-wrap"><table>
+    <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th>Status</th></tr></thead>
+    {% for u in treffer %}
+    <tr><td><a href="{{ url_for('umsaetze.detail', umsatz_id=u.id) }}">{{ u.buchungsdatum|datum }}</a></td>
+      <td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+      <td class="r">{{ betrag(u.betrag_cent) }}</td>
+      <td>{% if u.vor_beginn and u.status == 'BOOK' %}<span class="badge">vor Beginn</span>{% else %}{{ badge('PDNG' if u.status == 'PDNG' else u.zuordnungsstatus) }}{% endif %}</td></tr>
+    {% endfor %}
+  </table></div>
+  {% else %}<p class="leise">Keine Umsätze gefunden.</p>{% endif %}
+{% endif %}
+{% endblock %}

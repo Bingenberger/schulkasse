@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "macros.html" import badge, kennzahlen %}
+{% block title %}Zahlungsstand {{ p.kurzcode }}{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Zahlungsstand <small>{{ p.bezeichnung }}</small></h1>
+  <div class="aktionen">
+    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='csv', sort=sortierung, status=status or '') }}">CSV</a>
+    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='pdf', sort=sortierung, status=status or '') }}">PDF</a>
+  </div>
+</div>
+{{ kennzahlen(kz) }}
+<form class="filter" method="get">
+  <div class="feld"><label for="f-st">Status</label>
+    <select id="f-st" name="status" data-autosubmit><option value="">alle</option>
+      {% for s in ['offen','teilweise','erledigt'] + (['erlassen'] if ist_kasse else []) %}<option value="{{ s }}" {% if status == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+    </select></div>
+  <input type="hidden" name="sort" value="{{ sortierung }}">
+  <button type="submit">Filtern</button>
+</form>
+<div class="tabelle-wrap"><table>
+  <thead><tr>
+    <th><a href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, sort='klasse', status=status or '') }}">Klasse</a></th>
+    <th><a href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, sort='name', status=status or '') }}">Name</a></th>
+    <th><a href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, sort='code', status=status or '') }}">Zahlcode</a></th>
+    <th class="r">Soll</th><th class="r">Bezahlt</th>
+    <th class="r"><a href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, sort='rest', status=status or '') }}">Offen</a></th>
+    <th><a href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, sort='status', status=status or '') }}">Status</a></th>
+    <th>Zuletzt bezahlt</th><th>Letzter Brief</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr><td>{{ r.klasse }}</td><td>{{ r.nachname }}, {{ r.vorname }}</td><td class="mono">{{ r.zahlcode or '' }}</td>
+    <td class="r">{{ r.sollbetrag_cent|euro }}</td><td class="r">{{ r.bezahlt|euro }}</td>
+    <td class="r">{{ [r.sollbetrag_cent - r.bezahlt, 0]|max|euro if r.status in ('offen','teilweise') else '–' }}</td>
+    <td>{{ badge(r.status) }}</td><td>{{ r.zuletzt_bezahlt|datum }}</td><td>{{ r.letzter_brief_am|zeit }}</td></tr>
+  {% else %}<tr><td colspan="9" class="leise">Keine Einträge.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+<p class="leise">CSV- und PDF-Exporte enthalten nie Kinder mit BuT-/Härtefallstatus oder erlassene Posten.</p>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Kinder{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Kinder <small>{{ kinder|length }}</small></h1>
+  <div class="aktionen">
+    <a class="knopf" href="{{ url_for('stammdaten.kind_neu') }}">Kind anlegen</a>
+    <a class="knopf zweit" href="{{ url_for('stammdaten.csv_import') }}">Klassenliste importieren</a>
+  </div>
+</div>
+<form class="filter" method="get">
+  <div class="feld"><label for="q">Name</label><input id="q" type="search" name="q" value="{{ args.q or '' }}"></div>
+  <div class="feld"><label for="f-kl">Klasse</label>
+    <select id="f-kl" name="klasse"><option value="">aktives Schuljahr</option>
+      {% for k in klassen %}<option value="{{ k.id }}" {% if args.klasse == k.id|string %}selected{% endif %}>{{ k.bezeichnung }} ({{ k.schuljahr }})</option>{% endfor %}
+    </select></div>
+  <label class="check"><input type="checkbox" name="but" value="1" {% if args.but == '1' %}checked{% endif %}> nur BuT</label>
+  <label class="check"><input type="checkbox" name="alle" value="1" {% if args.alle == '1' %}checked{% endif %}> auch inaktive / frühere</label>
+  <button type="submit">Filtern</button>
+</form>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Klasse</th><th>Nachname</th><th>Vorname</th><th>Familie</th><th>Hinweise</th></tr></thead>
+  {% for k in kinder %}
+  <tr><td>{{ k.klasse }}</td><td><a href="{{ url_for('stammdaten.kind', kind_id=k.id) }}">{{ k.nachname }}</a></td><td>{{ k.vorname }}</td>
+    <td>{{ k.familie or '' }}{% if k.geschwister > 1 %} <small>({{ k.geschwister }} Kinder)</small>{% endif %}</td>
+    <td>{% if k.but_status %}<span class="badge">BuT</span>{% endif %}{% if not k.aktiv %} <span class="badge">inaktiv</span>{% endif %}{% if k.anonymisiert %} <span class="badge">anonymisiert</span>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="5" class="leise">Keine Kinder gefunden.</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge, betrag %}
+{% block title %}Anfangsbestand {{ k.bezeichnung }}{% endblock %}
+{% block content %}
+<h1>Kontoführung und Anfangsbestand <small>{{ k.bezeichnung }}</small></h1>
+
+<section class="karte">
+  <h2>Beginn der Kontoführung</h2>
+  <p>Ab diesem Stichtag werden Umsätze in der Schulkasse zugeordnet. Frühere Umsätze bleiben gespeichert und
+    durchsuchbar, erscheinen aber nicht in der Zuordnung und nicht in der Kontrollrechnung. Das Geld, das zum Stichtag
+    auf dem Konto liegt, ist der <strong>Anfangsbestand</strong> und wird unten auf Projekte verteilt.</p>
+  {% if zeitraum.anzahl %}
+  <p class="leise">Importierte gebuchte Umsätze: {{ zeitraum.anzahl }} vom {{ zeitraum.von|datum }} bis {{ zeitraum.bis|datum }}
+    {% if k.beginn_datum %}· davon vor dem Stichtag: {{ zeitraum.vorher }}{% endif %}</p>
+  {% endif %}
+  {% if aktueller_user.rolle == 'admin' %}
+  <form method="post" class="zeile">
+    {{ csrf() }}<input type="hidden" name="aktion" value="stichtag">
+    <div class="feld"><label for="beginn_datum">Stichtag (erster Tag der Kontoführung)</label>
+      <input id="beginn_datum" type="date" name="beginn_datum" value="{{ k.beginn_datum or '' }}"></div>
+    <button type="submit" class="zweit" data-confirm="Beginn der Kontoführung ändern? Der Anfangsbestand wird neu berechnet.">Speichern</button>
+  </form>
+  <p class="leise">Ohne Stichtag beginnt die Kontoführung mit dem ersten importierten Umsatz. Ein Stichtag lässt sich
+    nur setzen, solange davor keine Umsätze zugeordnet oder ignoriert sind.</p>
+  {% else %}
+  <p>Stichtag: <strong>{{ k.beginn_datum|datum if k.beginn_datum else 'nicht gesetzt (erster importierter Umsatz)' }}</strong>
+    <span class="leise">– änderbar durch die Administration.</span></p>
+  {% endif %}
+</section>
+
+<section class="karte">
+  <h2>Anfangsbestand{% if ab.stichtag %} zum {{ ab.stichtag|datum }}{% endif %}</h2>
+  {% if ab.betrag is none %}
+    <p class="hinweis">{{ ab.hinweis }}</p>
+  {% else %}
+  <dl class="kennzahlen">
+    <div><dt>Anfangsbestand</dt><dd>{{ ab.betrag|euro }}</dd></div>
+    <div><dt>Verteilt</dt><dd>{{ verteilt|euro }}</dd></div>
+    <div><dt>Noch zu verteilen</dt><dd>{{ rest|euro }}</dd></div>
+  </dl>
+  <p class="leise">Berechnet aus dem Kontostand vor dem ersten importierten Auszug ({{ k.eroeffnungssaldo_cent|euro }},
+    {{ k.eroeffnungssaldo_datum|datum }}) und allen gebuchten Umsätzen vor dem Stichtag. Bitte mit dem Kontoauszug der Bank
+    vergleichen.</p>
+  {% if rest == 0 %}<p class="meldung ok">Der Anfangsbestand ist vollständig verteilt.</p>{% endif %}
+  {% endif %}
+  {% if abweichungen %}
+  <div class="hinweis">
+    <p><strong>Die importierten Salden passen nicht lückenlos zusammen.</strong> Vermutlich fehlt ein Kontoauszug
+      oder der Anfangsbestand unter <a href="{{ url_for('verwaltung.konten', id=k.id) }}">Konten</a> ist falsch.</p>
+    <ul>{% for a in abweichungen %}<li>{{ a.dateiname }}, {{ a.datum|datum }}: Bank {{ a.bank|euro }}, berechnet {{ a.berechnet|euro }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+</section>
+
+{% if ab.betrag is not none %}
+<section class="karte">
+  <h2>Auf Projekte verteilen</h2>
+  <p class="leise">Je Zeile ein Projekt („Topf“) und ein Betrag. Wurde ein offener Posten schon vor dem Stichtag
+    bezahlt, zusätzlich seinen Zahlcode angeben – der Posten gilt dann als bezahlt. Negative Beträge sind möglich,
+    etwa für eine Vorkasse, die ein Projekt zum Stichtag schuldet.</p>
+  <form method="post">
+    {{ csrf() }}<input type="hidden" name="aktion" value="verteilen">
+    <div class="tabelle-wrap"><table>
+      <thead><tr><th>Projekt</th><th>Zahlcode (optional)</th><th class="r">Betrag</th><th>Notiz</th></tr></thead>
+      <tbody>
+      {% for i in range(6) %}
+      <tr>
+        <td><select name="projekt_id" aria-label="Projekt Zeile {{ i + 1 }}"><option value="">–</option>
+          {% for p in projekte %}<option value="{{ p.id }}">{{ p.kurzcode }} – {{ p.bezeichnung }}</option>{% endfor %}</select></td>
+        <td><input name="zahlcode" class="mono" aria-label="Zahlcode Zeile {{ i + 1 }}" placeholder="z. B. KF4A-0001"></td>
+        <td><input name="betrag" inputmode="decimal" aria-label="Betrag Zeile {{ i + 1 }}"
+             {% if loop.first and rest %}value="{{ format_cent(rest, False) }}"{% endif %}></td>
+        <td><input name="notiz" aria-label="Notiz Zeile {{ i + 1 }}"></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <p><button type="submit">Verteilung speichern</button> <span class="leise">Leere Zeilen werden ignoriert.</span></p>
+  </form>
+</section>
+{% endif %}
+
+<h2>Verteilung</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Projekt</th><th>Posten</th><th class="r">Betrag</th><th>Notiz</th><th>Erstellt</th><th></th></tr></thead>
+  <tbody>
+  {% for e in eintraege %}
+  <tr class="{{ 'storniert' if e.storniert }}">
+    <td><a href="{{ url_for('projekte.detail', projekt_id=e.projekt_id) }}">{{ e.projekt }}</a></td>
+    <td>{% if e.offener_posten_id %}<a class="mono" href="{{ url_for('projekte.posten_detail', posten_id=e.offener_posten_id) }}">{{ e.zahlcode or e.posten }}</a>
+      {% if e.vorname %}{{ e.vorname }} {{ e.nachname }}{% endif %}{% else %}–{% endif %}</td>
+    <td class="r">{{ betrag(e.betrag_cent) }}</td><td>{{ e.notiz or '' }}</td><td>{{ e.von }}, {{ e.erstellt_am|zeit }}</td>
+    <td class="keep">
+      {% if e.storniert %}{{ badge('storniert') }} <small>{{ e.storno_von }}: {{ e.storno_grund }}</small>
+      {% else %}
+      <details class="aufklapp"><summary>Stornieren …</summary>
+        <form method="post" class="zeile">{{ csrf() }}
+          <input type="hidden" name="aktion" value="stornieren"><input type="hidden" name="id" value="{{ e.id }}">
+          <div class="feld"><label for="sg-{{ e.id }}">Begründung (Pflicht)</label><input id="sg-{{ e.id }}" name="grund" required></div>
+          <button type="submit" class="gefahr">Stornieren</button></form>
+      </details>
+      {% endif %}
+    </td>
+  </tr>
+  {% else %}<tr><td colspan="6" class="leise">Noch nichts verteilt.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% endblock %}

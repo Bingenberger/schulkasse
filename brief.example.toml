@@ -1,0 +1,30 @@
+# Letter settings for parent letters (F7.2). Copy to instance/brief.toml.
+# All values marked [PLATZHALTER: ...] must be replaced before going live.
+
+schulname = "[PLATZHALTER: Name der Schule, z. B. GGS Niederkassel]"
+
+# Multi-line letterhead, printed top right
+briefkopf = """[PLATZHALTER: Briefkopf, Anschrift, Kontaktdaten]
+Musterstraße 1
+53859 Niederkassel
+Telefon 02208 000000
+sekretariat@example.org"""
+
+# Optional logo (PNG/JPG/SVG), path relative to this file
+logo = ""
+
+ort = "Niederkassel"
+
+# Default letter text, editable when generating letters
+standardtext = """Liebe Eltern,
+
+[PLATZHALTER: Standardtext des Elternbriefs – Anlass, Ablauf, wofür das Geld verwendet wird.]
+
+Bitte überweisen Sie den Betrag bis zum genannten Datum. Nutzen Sie dafür am besten den QR-Code: Er enthält alle Angaben, auch den Zahlcode, mit dem wir Ihre Zahlung automatisch zuordnen."""
+
+# Short, non-stigmatising note on who to contact if payment is difficult
+hinweis_kostenuebernahme = "[PLATZHALTER: Hinweistext zur Kostenübernahme – z. B. Wenn Ihnen die Zahlung schwerfällt, sprechen Sie uns bitte vertraulich an. Oft können die Kosten übernommen werden.]"
+
+hinweis_ohne_qr = "Ihre Banking-App kann keine QR-Codes lesen? Dann überweisen Sie bitte mit den Angaben rechts neben dem Code. Wichtig: Übernehmen Sie den Verwendungszweck unverändert, besonders den Zahlcode am Anfang."
+
+unterschrift = "Die Schulleitung"

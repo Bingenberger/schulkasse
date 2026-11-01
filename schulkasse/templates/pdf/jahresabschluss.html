@@ -1,0 +1,47 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Jahresabschluss {{ p.bezeichnung }}{% endblock %}
+{% block body %}
+<h1>Jahresabschluss: {{ p.bezeichnung }} ({{ p.kurzcode }})</h1>
+<div class="meta">Schuljahr {{ p.schuljahr }}{% if p.klasse %} · Klasse{{ 'n' if ',' in p.klasse }} {{ p.klasse }}{% endif %} · Status {{ p.status }}{% if p.abgeschlossen_am %} am {{ p.abgeschlossen_am|datum }}{% endif %}
+  · erzeugt am {{ erzeugt|zeit }} von {{ user.anzeigename }}</div>
+<div class="kz">
+  <div>Endsaldo<b>{{ kz.saldo|euro }}</b></div>
+  <div>Erwartete Eingänge<b>{{ kz.erwartete_eingaenge|euro }}</b></div>
+  <div>Erwartete Ausgänge<b>{{ kz.erwartete_ausgaenge|euro }}</b></div>
+  <div>Prognose<b>{{ kz.prognose|euro }}</b></div>
+</div>
+
+<h2>Umsätze</h2>
+<table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th>Posten</th><th>Quelle</th><th class="r">Betrag</th></tr></thead>
+  <tbody>
+  {% for z in umsaetze %}
+  <tr class="{{ 'storniert' if z.storniert }}"><td>{{ z.buchungsdatum|datum }}</td><td>{{ z.gegen_name or '' }}</td><td>{{ z.verwendungszweck or '' }}</td>
+    <td>{{ z.zahlcode or z.posten or '' }}</td><td>{{ z.quelle }}{% if z.storniert %} (storniert: {{ z.storno_grund }}){% endif %}</td>
+    <td class="r">{{ z.betrag_cent|euro }}</td></tr>
+  {% else %}<tr><td colspan="6">Keine Umsätze.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="5">Saldo (ohne Stornos)</td><td class="r">{{ kz.saldo|euro }}</td></tr></tfoot>
+</table>
+
+<h2>Posten</h2>
+<table>
+  <thead><tr><th>Richtung</th><th>Zahlcode</th><th>Bezeichnung / Kind</th><th class="r">Soll</th><th class="r">Bezahlt</th><th>Status</th><th>Grund</th></tr></thead>
+  <tbody>
+  {% for po in posten %}
+  <tr><td>{{ po.richtung }}</td><td>{{ po.zahlcode or '' }}</td>
+    <td>{% if po.vorname %}{{ po.nachname }}, {{ po.vorname }} ({{ po.klasse }}){% else %}{{ po.bezeichnung }}{% endif %}</td>
+    <td class="r">{{ po.sollbetrag_cent|euro }}</td><td class="r">{{ po.bezahlt|euro }}</td><td>{{ po.status }}</td><td>{{ po.erlass_grund or '' }}</td></tr>
+  {% else %}<tr><td colspan="7">Keine Posten.</td></tr>{% endfor %}
+  </tbody>
+</table>
+
+<h2>Hinterlegte Belege</h2>
+<table>
+  <thead><tr><th>Datei</th><th>Hochgeladen</th><th class="r">Größe</th></tr></thead>
+  <tbody>
+  {% for b in belege %}<tr><td>{{ b.dateiname }}</td><td>{{ b.von }}, {{ b.hochgeladen_am|zeit }}</td><td class="r">{{ (b.groesse_bytes / 1024)|round(1) }} KB</td></tr>
+  {% else %}<tr><td colspan="3">Keine Belege.</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

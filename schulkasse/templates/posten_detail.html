@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge, betrag %}
+{% block title %}Posten {{ po.zahlcode or po.id }}{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>Posten <span class="mono">{{ po.zahlcode or '#' ~ po.id }}</span></h1>
+  <div>{{ badge(po.status) }}</div>
+</div>
+<p><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a> ·
+  {{ 'Eingang' if po.richtung == 'eingang' else 'Ausgang' }} · {{ po.kategorie }}
+  {% if po.vorname %} · {{ po.vorname }} {{ po.nachname }} ({{ po.klasse }}){% if po.but_status %} <span class="badge">BuT</span>{% endif %}{% endif %}</p>
+
+<dl class="kennzahlen">
+  <div><dt>Soll</dt><dd>{{ po.sollbetrag_cent|euro }}</dd></div>
+  <div><dt>Bezahlt</dt><dd>{{ bezahlt|euro }}</dd></div>
+  <div><dt>{{ 'Überzahlung' if bezahlt > po.sollbetrag_cent else 'Offen' }}</dt><dd>{{ (bezahlt - po.sollbetrag_cent)|abs|euro }}</dd></div>
+  <div><dt>Letzter Brief</dt><dd>{{ po.letzter_brief_am|zeit or '–' }}</dd></div>
+</dl>
+{% if po.erlass_grund %}<p class="hinweis info">Grund: {{ po.erlass_grund }}</p>{% endif %}
+{% if bezahlt > po.sollbetrag_cent %}
+  {% set ueber = bezahlt - po.sollbetrag_cent %}
+  {% if po.ueberzahlung_geklaert_cent is not none and ueber <= po.ueberzahlung_geklaert_cent %}
+  <div class="hinweis info">
+    <p>Überzahlung von {{ ueber|euro }} ist geklärt: {{ po.ueberzahlung_grund }}
+      <small class="leise">({{ po.ueberzahlung_geklaert_am|zeit }})</small></p>
+    <form method="post" action="{{ url_for('projekte.posten_ueberzahlung', posten_id=po.id) }}">
+      {{ csrf() }}<input type="hidden" name="aktion" value="aufheben">
+      <button type="submit" class="zweit klein">Klärung aufheben</button></form>
+  </div>
+  {% else %}
+  <div class="hinweis">
+    <p>Auf diesen Posten wurde {{ ueber|euro }} zu viel gezahlt. Möglich sind: Betrag zurückerstatten,
+      als Spende behalten, per Umbuchung in einen anderen Topf buchen oder den Sollbetrag anpassen.
+      Danach hier abhaken – an den Beträgen ändert das nichts.</p>
+    <form method="post" action="{{ url_for('projekte.posten_ueberzahlung', posten_id=po.id) }}" class="zeile">
+      {{ csrf() }}
+      <div class="feld"><label for="ueber-grund">Wie wurde es geklärt? (Pflicht)</label>
+        <input id="ueber-grund" name="grund" required placeholder="z. B. zurückerstattet am 01.10."></div>
+      <button type="submit" class="zweit">Als geklärt markieren</button>
+    </form>
+  </div>
+  {% endif %}
+{% endif %}
+
+<h2>Zahlungen</h2>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th>Quelle</th></tr></thead>
+  {% for z in zuordnungen %}
+  <tr class="{{ 'storniert' if z.storniert }}"><td><a href="{{ url_for('umsaetze.detail', umsatz_id=z.bankumsatz_id) }}">{{ z.buchungsdatum|datum }}</a></td>
+    <td>{{ z.gegen_name or '' }}</td><td class="zweck">{{ z.verwendungszweck or '' }}</td><td class="r">{{ betrag(z.betrag_cent) }}</td>
+    <td class="keep">{{ z.quelle }}{% if z.storniert %} {{ badge('storniert') }}{% endif %}</td></tr>
+  {% endfor %}
+  {% for a in anfang %}
+  <tr class="{{ 'storniert' if a.storniert }}"><td>{{ a.stichtag|datum }}</td><td>Anfangsbestand {{ a.konto }}</td>
+    <td class="zweck">{{ a.notiz or '' }}</td><td class="r">{{ betrag(a.betrag_cent) }}</td>
+    <td class="keep"><a href="{{ url_for('verwaltung.anfangsbestand', konto_id=a.konto_id) }}">Anfangsbestand</a>{% if a.storniert %} {{ badge('storniert') }}{% endif %}</td></tr>
+  {% endfor %}
+  {% for u in umbuchungen %}
+  <tr class="{{ 'storniert' if u.storniert }}"><td>{{ u.erstellt_am|zeit }}</td>
+    <td>Umbuchung von {{ u.von_projekt }}</td><td class="zweck">{{ u.grund }}</td>
+    <td class="r">{{ betrag(u.betrag_cent) }}</td>
+    <td class="keep"><a href="{{ url_for('projekte.detail', projekt_id=u.von_projekt_id) }}">Umbuchung</a>{% if u.storniert %} {{ badge('storniert') }}{% endif %}</td></tr>
+  {% endfor %}
+  {% if not zuordnungen and not anfang and not umbuchungen %}<tr><td colspan="5" class="leise">Noch keine Zahlungen.</td></tr>{% endif %}
+</table></div>
+
+{% if p.status == 'offen' and po.status in ('offen', 'teilweise') and konten %}
+<details class="aufklapp"><summary>Wurde vor Beginn der Kontoführung bezahlt …</summary>
+  <p class="leise">Die Zahlung liegt im Anfangsbestand des Kontos. Sie wird von dort diesem Posten zugeordnet.</p>
+  <form method="post" action="{{ url_for('projekte.posten_anfangsbestand', posten_id=po.id) }}" class="zeile">
+    {{ csrf() }}
+    {% if konten|length > 1 %}
+    <div class="feld"><label for="ab-konto">Konto</label>
+      <select id="ab-konto" name="konto_id">{% for k in konten %}<option value="{{ k.id }}" {% if k.id == konto_vorwahl %}selected{% endif %}>{{ k.bezeichnung }}</option>{% endfor %}</select></div>
+    {% else %}<input type="hidden" name="konto_id" value="{{ konten[0].id }}">{% endif %}
+    <div class="feld"><label for="ab-betrag">Betrag</label>
+      <input id="ab-betrag" name="betrag" inputmode="decimal" value="{{ format_cent(po.sollbetrag_cent - bezahlt, False) }}" required></div>
+    <div class="feld"><label for="ab-notiz">Notiz</label><input id="ab-notiz" name="notiz" placeholder="z. B. bar im Juli bezahlt"></div>
+    <button type="submit" class="zweit">Aus Anfangsbestand verbuchen</button>
+  </form>
+</details>
+{% endif %}
+
+{% if p.status == 'offen' %}
+<h2>Bearbeiten</h2>
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="feld"><label for="bezeichnung">Bezeichnung</label><input id="bezeichnung" name="bezeichnung" value="{{ po.bezeichnung }}" required></div>
+  <div class="zeile">
+    <div class="feld"><label for="betrag">Sollbetrag</label><input id="betrag" name="betrag" value="{{ format_cent(po.sollbetrag_cent, False) }}" required>
+      {% if po.letzter_brief_am %}<span class="hilfe">Achtung: Der Betrag steht bereits in einem gedruckten QR-Code.</span>{% endif %}</div>
+    <div class="feld"><label for="faellig_am">Fällig am</label><input id="faellig_am" type="date" name="faellig_am" value="{{ po.faellig_am or '' }}"></div>
+  </div>
+  <div class="feld"><label for="notiz">Notiz</label><input id="notiz" name="notiz" value="{{ po.notiz or '' }}"></div>
+  <div><button type="submit">Speichern</button></div>
+</form>
+
+<h2>Status</h2>
+<div class="aktionen">
+{% if po.status in ('erlassen', 'storniert') %}
+  <form method="post" action="{{ url_for('projekte.posten_status', posten_id=po.id) }}">{{ csrf() }}
+    <input type="hidden" name="status" value="reaktivieren"><button type="submit" class="zweit">Reaktivieren</button></form>
+{% else %}
+  <details class="aufklapp"><summary>Erlassen …</summary>
+    <form method="post" action="{{ url_for('projekte.posten_status', posten_id=po.id) }}" class="zeile">{{ csrf() }}
+      <input type="hidden" name="status" value="erlassen">
+      <div class="feld"><label for="g1">Begründung (Pflicht)</label><input id="g1" name="grund" required></div>
+      <button type="submit" class="zweit">Erlassen</button></form>
+  </details>
+  <details class="aufklapp"><summary>Stornieren …</summary>
+    <form method="post" action="{{ url_for('projekte.posten_status', posten_id=po.id) }}" class="zeile">{{ csrf() }}
+      <input type="hidden" name="status" value="storniert">
+      <div class="feld"><label for="g2">Begründung (Pflicht)</label><input id="g2" name="grund" required></div>
+      <button type="submit" class="gefahr">Stornieren</button></form>
+  </details>
+{% endif %}
+</div>
+{% endif %}
+{% endblock %}

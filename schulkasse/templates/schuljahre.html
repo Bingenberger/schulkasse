@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Schuljahre{% endblock %}
+{% block content %}
+<h1>Schuljahre</h1>
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Schuljahr</th><th>Beginn</th><th>Ende</th><th class="r">Klassen</th><th class="r">Aktive Kinder</th><th></th></tr></thead>
+  {% for s in schuljahre %}
+  <tr><td>{{ s.bezeichnung }}</td><td>{{ s.beginn|datum }}</td><td>{{ s.ende|datum }}</td>
+    <td class="r"><a href="{{ url_for('stammdaten.klassen', schuljahr=s.id) }}">{{ s.klassen }}</a></td><td class="r">{{ s.kinder }}</td>
+    <td>{% if s.aktiv %}<span class="badge b-erledigt">aktiv</span>{% else %}
+      <form method="post" action="{{ url_for('stammdaten.schuljahr_aktiv', sj_id=s.id) }}">{{ csrf() }}
+        <button type="submit" class="zweit klein">aktivieren</button></form>{% endif %}</td></tr>
+  {% else %}<tr><td colspan="6" class="leise">Noch kein Schuljahr angelegt.</td></tr>{% endfor %}
+</table></div>
+
+<h2>Neues Schuljahr</h2>
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="zeile">
+    <div class="feld"><label for="bezeichnung">Bezeichnung</label><input id="bezeichnung" name="bezeichnung" placeholder="2027/28" required></div>
+    <div class="feld"><label for="beginn">Beginn</label><input id="beginn" type="date" name="beginn" required></div>
+    <div class="feld"><label for="ende">Ende</label><input id="ende" type="date" name="ende" required></div>
+  </div>
+  <label class="check"><input type="checkbox" name="aktiv" value="1"> sofort aktivieren</label>
+  <div><button type="submit">Anlegen</button></div>
+  <p class="leise">Für den Wechsel mit Aufrücken der Klassen: <a href="{{ url_for('stammdaten.hochschreiben_view') }}">Schuljahreswechsel</a>.</p>
+</form>
+{% endblock %}

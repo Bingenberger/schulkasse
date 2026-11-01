@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Übersicht{% endblock %}
+{% block content %}
+<h1>Meine Projekte{% if schuljahr %} <small>Schuljahr {{ schuljahr.bezeichnung }}</small>{% endif %}</h1>
+{% if projekte %}
+<div class="raster">
+  {% for p, kz in projekte %}
+  <div class="karte">
+    <h2><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a></h2>
+    <p>{% if kz.gesamt %}<span class="zahl">{{ kz.bezahlt }} von {{ kz.gesamt }}</span> bezahlt ({{ kz.quote }} %){% else %}Noch keine Beiträge angelegt.{% endif %}</p>
+    <p class="aktionen">
+      <a class="knopf klein" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id) }}">Zahlungsstand</a>
+      {% if p.typ == 'elternbeitrag' %}<a class="knopf klein zweit" href="{{ url_for('projekte.briefe', projekt_id=p.id) }}">Elternbriefe</a>{% endif %}
+    </p>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<p class="hinweis info">Ihnen ist derzeit kein offenes Projekt zugeordnet. Die Kasse kann Sie als verantwortliche Person eintragen.</p>
+{% endif %}
+{% endblock %}

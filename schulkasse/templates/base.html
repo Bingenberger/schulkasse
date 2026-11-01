@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Schulkasse{% endblock %} · Schulkasse</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+<a class="skip" href="#inhalt">Zum Inhalt springen</a>
+{% if aktueller_user %}
+<header class="kopf">
+  <a class="marke" href="{{ url_for('start.dashboard') }}">Schulkasse</a>
+  <nav aria-label="Hauptnavigation">
+    <ul class="nav">
+      <li><a href="{{ url_for('start.dashboard') }}">Übersicht</a></li>
+      {% if ist_kasse %}
+      <li><a href="{{ url_for('umsaetze.arbeitsliste') }}">Zuordnung</a></li>
+      <li><a href="{{ url_for('umsaetze.liste') }}">Umsätze</a></li>
+      <li><a href="{{ url_for('umsaetze.import_start') }}">Import</a></li>
+      {% endif %}
+      <li><a href="{{ url_for('projekte.liste') }}">Projekte</a></li>
+      {% if ist_kasse %}
+      <li>
+        <details class="menu"><summary>Stammdaten</summary>
+          <ul>
+            <li><a href="{{ url_for('stammdaten.kinder') }}">Kinder</a></li>
+            <li><a href="{{ url_for('stammdaten.klassen') }}">Klassen</a></li>
+            <li><a href="{{ url_for('stammdaten.schuljahre') }}">Schuljahre</a></li>
+            <li><a href="{{ url_for('stammdaten.csv_import') }}">Klassenliste importieren</a></li>
+            <li><a href="{{ url_for('stammdaten.hochschreiben_view') }}">Schuljahreswechsel</a></li>
+          </ul>
+        </details>
+      </li>
+      <li>
+        <details class="menu"><summary>Auswertungen</summary>
+          <ul>
+            <li><a href="{{ url_for('auswertungen.kassenbuch_view') }}">Kassenbuch</a></li>
+            <li><a href="{{ url_for('auswertungen.monatsbericht_view') }}">Monatsbericht</a></li>
+            <li><a href="{{ url_for('auswertungen.erinnerungen') }}">Erinnerungsliste</a></li>
+            <li><a href="{{ url_for('auswertungen.ueberzahlungen_view') }}">Überzahlungen</a></li>
+            <li><a href="{{ url_for('auswertungen.kontenverteilung_view') }}">Geld je Projekt und Konto</a></li>
+            <li><a href="{{ url_for('umsaetze.ignoriert_liste') }}">Ignorierte Umsätze</a></li>
+          </ul>
+        </details>
+      </li>
+      <li>
+        <details class="menu"><summary>Verwaltung</summary>
+          <ul>
+            <li><a href="{{ url_for('verwaltung.protokoll') }}">Protokoll</a></li>
+            <li><a href="{{ url_for('verwaltung.briefvorlage') }}">Briefvorlage</a></li>
+            {% if aktueller_user.rolle == 'admin' %}
+            <li><a href="{{ url_for('verwaltung.benutzer') }}">Benutzer</a></li>
+            <li><a href="{{ url_for('verwaltung.konten') }}">Konten</a></li>
+            <li><a href="{{ url_for('verwaltung.anonymisierung_view') }}">Anonymisierung</a></li>
+            {% endif %}
+          </ul>
+        </details>
+      </li>
+      {% else %}
+      <li><a href="{{ url_for('auswertungen.erinnerungen') }}">Erinnerungen</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+  <div class="kopf-rechts">
+    {% if ist_kasse %}
+    <form class="suche" action="{{ url_for('start.suche') }}" method="get" role="search">
+      <label for="q-kopf" class="sr">Suche</label>
+      <input id="q-kopf" type="search" name="q" placeholder="Suchen …" title="Name, Zahlcode, Verwendungszweck oder Betrag">
+    </form>
+    {% endif %}
+    <details class="menu rechts"><summary>{{ aktueller_user.anzeigename }}</summary>
+      <ul>
+        <li class="menu-info">{{ ROLLEN[aktueller_user.rolle] }}</li>
+        <li><a href="{{ url_for('auth.passwort') }}">Passwort ändern</a></li>
+        <li><a href="{{ url_for('auth.sicherheit') }}">Zwei-Faktor-Sicherheit</a></li>
+        <li>
+          <form method="post" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="link" type="submit">Abmelden</button>
+          </form>
+        </li>
+      </ul>
+    </details>
+  </div>
+</header>
+{% endif %}
+<main id="inhalt" class="{% block main_class %}inhalt{% endblock %}">
+  {% with meldungen = get_flashed_messages(with_categories=true) %}
+    {% if meldungen %}
+    <div class="meldungen" role="status">
+      {% for kat, text in meldungen %}<p class="meldung {{ kat }}">{{ text }}</p>{% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+  {% block content %}{% endblock %}
+</main>
+</body>
+</html>

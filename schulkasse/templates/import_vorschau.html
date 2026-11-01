@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, badge, betrag %}
+{% block title %}Import-Vorschau{% endblock %}
+{% block content %}
+<h1>Vorschau: {{ dateiname }}</h1>
+<p class="hinweis info">Es wurde noch nichts gespeichert. Bitte prüfen und bestätigen.</p>
+{% for a in analysen %}
+<section class="karte">
+  {% set von, bis = a.zeitraum %}
+  <h2>{{ a.datei.dateiname }}</h2>
+  <p class="leise">{{ a.konto.bezeichnung }} · {{ a.iban|iban }} · Zeitraum {{ von|datum }} – {{ bis|datum }}</p>
+  <dl class="kennzahlen">
+    <div><dt>Neue Umsätze</dt><dd>{{ a.neu|length }}</dd></div>
+    <div><dt>Davon vorgemerkt</dt><dd>{{ a.anzahl_vorgemerkt }}</dd></div>
+    <div><dt>Bereits vorhanden</dt><dd>{{ a.duplikate|length }}</dd></div>
+    <div><dt>Vormerkungen ersetzt</dt><dd>{{ a.ersetzt|length }}</dd></div>
+    <div><dt>Summe Eingänge</dt><dd>{{ a.summe_eingaenge|euro }}</dd></div>
+    <div><dt>Summe Ausgänge</dt><dd>{{ a.summe_ausgaenge|euro }}</dd></div>
+    <div><dt>Schlusssaldo{% if a.schlusssaldo %} am {{ a.schlusssaldo.datum|datum }}{% endif %}</dt>
+      <dd>{% if a.schlusssaldo %}{{ a.schlusssaldo.betrag_cent|euro }}{% else %}–{% endif %}</dd></div>
+  </dl>
+  {% if a.neu %}
+  <details class="aufklapp"><summary>Neue Umsätze anzeigen</summary>
+  <div class="tabelle-wrap"><table>
+    <thead><tr><th>Datum</th><th>Gegenseite</th><th>Verwendungszweck</th><th class="r">Betrag</th><th>Status</th></tr></thead>
+    {% for u in a.neu[:300] %}
+    <tr><td>{{ u.buchungsdatum|datum }}</td><td>{{ u.gegen_name or '' }}</td><td class="zweck">{{ u.verwendungszweck or '' }}</td>
+      <td class="r">{{ betrag(u.betrag_cent) }}</td><td>{{ badge(u.status) }}</td></tr>
+    {% endfor %}
+  </table></div>
+  </details>
+  {% endif %}
+</section>
+{% endfor %}
+<div class="aktionen">
+  <form method="post" action="{{ url_for('umsaetze.import_bestaetigen') }}">
+    {{ csrf() }}<input type="hidden" name="token" value="{{ token }}">
+    <button type="submit">Import bestätigen und speichern</button>
+  </form>
+  <form method="post" action="{{ url_for('umsaetze.import_abbrechen') }}">
+    {{ csrf() }}<input type="hidden" name="token" value="{{ token }}">
+    <button type="submit" class="zweit">Abbrechen</button>
+  </form>
+</div>
+{% endblock %}
