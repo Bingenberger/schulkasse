@@ -38,6 +38,10 @@ tests/             pytest, inkl. aller 14 Abnahmekriterien
 
 ## Installation von diesem Rechner aus (ssh + rsync)
 
+> **Schulplattform:** In der Schulplattform läuft die Schulkasse als Container; Domain, Zertifikat,
+> Migration und Sicherung übernimmt die Plattform, das erste Konto legt
+> `./install.sh app-setup schulkasse` an. Siehe [PLATFORM.md](PLATFORM.md).
+
 `deploy/remote.sh` installiert die Schulkasse vom eigenen Rechner aus auf einem Server: Es führt die Tests
 lokal aus, überträgt die Projektkopie per **rsync** nach `~/schulkasse-quelle` auf dem Server und startet dort per
 **ssh** `deploy/install.sh` mit sudo. Die App läuft danach als systemd-Dienst auf `127.0.0.1:5015`; das auf dem

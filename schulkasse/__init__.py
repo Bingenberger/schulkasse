@@ -1,6 +1,7 @@
 """Schulkasse - contribution and cash book management for GGS Niederkassel."""
 import logging
 import secrets
+import sqlite3
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -9,7 +10,7 @@ from markupsafe import Markup
 
 from . import auth
 from .config import load_config
-from .db import Database, close_db, get_db, migrate
+from .db import Database, close_db, get_db, migrate, schema_status
 from .geld import format_cent
 from .textnorm import iban_formatiert
 
@@ -42,6 +43,20 @@ def _euro(cent):
     return Markup(format_cent(cent).replace(" €", "&nbsp;€")) if cent is not None else ""
 
 
+class TrustedProxyFix:
+    """X-Forwarded-For/-Proto only from the configured proxy addresses; other peers stay unchanged."""
+
+    def __init__(self, wsgi_app, proxies):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        self.plain = wsgi_app
+        self.fixed = ProxyFix(wsgi_app, x_for=1, x_proto=1)
+        self.proxies = proxies
+
+    def __call__(self, environ, start_response):
+        target = self.fixed if environ.get("REMOTE_ADDR") in self.proxies else self.plain
+        return target(environ, start_response)
+
+
 def create_app(overrides=None):
     app = Flask(__name__, instance_relative_config=False)
     app.config.update(load_config(overrides))
@@ -51,27 +66,50 @@ def create_app(overrides=None):
         app.config["SECRET_KEY"] = secrets.token_hex(32)
     if not app.config.get("TESTING") and len(app.config["SECRET_KEY"]) < 32:
         raise RuntimeError("SCHULKASSE_SECRET_KEY muss mindestens 32 Zeichen lang sein.")
-    if app.config.get("HINTER_PROXY") and not app.config.get("TESTING"):
+    if app.config.get("PROXY_IPS"):
+        app.wsgi_app = TrustedProxyFix(app.wsgi_app, app.config["PROXY_IPS"])
+    elif app.config.get("HINTER_PROXY") and not app.config.get("TESTING"):
         from werkzeug.middleware.proxy_fix import ProxyFix
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
     app.config["SESSION_COOKIE_HTTPONLY"] = True
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     app.session_interface = auth.DbSessionInterface()
 
-    db = Database(app.config["DATABASE"])
-    try:
-        migrate(db)
-    finally:
-        db.close()
+    if app.config.get("AUTO_MIGRATE", True):
+        db = Database(app.config["DATABASE"])
+        try:
+            migrate(db)
+        finally:
+            db.close()
 
     app.teardown_appcontext(close_db)
     app.jinja_env.filters.update(euro=_euro, datum=_datum, zeit=_zeit, iban=iban_formatiert)
     # Globals (not context processors) so that imported macros can use them too.
     app.jinja_env.globals.update(ROLLEN=auth.ROLLEN, format_cent=format_cent, csrf_token=auth.csrf_token)
 
+    @app.get("/health/live")
+    def health_live():
+        return {"status": "ok"}
+
+    @app.get("/health/ready")
+    def health_ready():
+        try:
+            db = Database(app.config["DATABASE"], create=False)
+        except (OSError, sqlite3.Error):
+            return {"status": "not-ready"}, 503
+        try:
+            ready = schema_status(db)[0]
+        except sqlite3.Error:
+            ready = False
+        finally:
+            db.close()
+        return ({"status": "ready"}, 200) if ready else ({"status": "not-ready"}, 503)
+
     @app.before_request
     def lade_benutzer():
         g.user = None
+        if request.endpoint in ("health_live", "health_ready"):
+            return None
         uid = session.get("user_id")
         if uid:
             user = get_db().one("SELECT * FROM benutzer WHERE id=?", (uid,))

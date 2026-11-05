@@ -49,8 +49,26 @@ def reset_2fa(benutzername):
 @click.command("migrate")
 @with_appcontext
 def migrate_cmd():
-    """Ausstehende Datenbank-Migrationen anwenden."""
-    applied = migrate(get_db())
+    """Ausstehende Datenbank-Migrationen anwenden (gesperrt; Dateien nur für den Dienstbenutzer)."""
+    import fcntl
+    import os
+    from flask import current_app
+    from .db import schema_status
+    os.umask(0o077)
+    datenbank = Path(current_app.config["DATABASE"])
+    datenbank.parent.mkdir(parents=True, exist_ok=True)
+    Path(current_app.config["UPLOAD_DIR"]).mkdir(parents=True, exist_ok=True)
+    with open(str(datenbank) + ".migrate.lock", "a") as sperre:
+        fcntl.flock(sperre, fcntl.LOCK_EX)
+        try:
+            applied = migrate(get_db())
+        except RuntimeError as exc:
+            raise click.ClickException(str(exc))
+        ok, fehlend, unbekannt = schema_status(get_db())
+        if not ok:
+            raise click.ClickException(f"Schema unvollständig (fehlend {fehlend}, unbekannt {unbekannt}).")
+        if get_db().scalar("PRAGMA integrity_check") != "ok":
+            raise click.ClickException("Integritätsprüfung fehlgeschlagen.")
     click.echo("Migrationen angewendet: " + (", ".join(applied) if applied else "keine (aktuell)"))
 
 

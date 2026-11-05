@@ -29,12 +29,28 @@ def _bool(value, default=False):
     return value.strip().lower() in ("1", "true", "ja", "yes", "on")
 
 
+def _secret(env, name):
+    """Value from NAME or NAME_FILE (container secrets); never both."""
+    direct, path = env.get(name, "").strip(), env.get(name + "_FILE", "").strip()
+    if direct and path:
+        raise RuntimeError(f"{name} und {name}_FILE nicht gleichzeitig setzen.")
+    return Path(path).read_text(encoding="utf-8").strip() if path else direct
+
+
+def _ips(value):
+    import ipaddress
+    items = [v.strip() for v in (value or "").split(",") if v.strip()]
+    for item in items:
+        ipaddress.ip_address(item)  # explicit addresses only, no networks or '*'
+    return frozenset(items)
+
+
 def load_config(overrides=None):
     load_dotenv(BASE_DIR / ".env")
     env = os.environ
     cfg = {
         "DATABASE": env.get("SCHULKASSE_DB", str(BASE_DIR / "instance" / "schulkasse.sqlite3")),
-        "SECRET_KEY": env.get("SCHULKASSE_SECRET_KEY", ""),
+        "SECRET_KEY": _secret(env, "SCHULKASSE_SECRET_KEY"),
         "UPLOAD_DIR": env.get("SCHULKASSE_UPLOAD_DIR", str(BASE_DIR / "instance" / "belege")),
         "BACKUP_DIR": env.get("SCHULKASSE_BACKUP_DIR", str(BASE_DIR / "instance" / "backups")),
         "MAX_CONTENT_LENGTH": int(env.get("SCHULKASSE_MAX_UPLOAD_MB", "20")) * 1024 * 1024,
@@ -44,6 +60,10 @@ def load_config(overrides=None):
         "SESSION_COOKIE_SECURE": _bool(env.get("SCHULKASSE_COOKIE_SECURE"), True),
         # Behind nginx: take client IP/scheme from X-Forwarded-* (needed for the IP lockout).
         "HINTER_PROXY": _bool(env.get("SCHULKASSE_HINTER_PROXY"), True),
+        # Container: only these peers may set X-Forwarded-* (takes precedence over HINTER_PROXY).
+        "PROXY_IPS": _ips(env.get("SCHULKASSE_PROXY_IPS")),
+        # Native installs migrate on start as before; the container runs 'schulkasse migrate' explicitly.
+        "AUTO_MIGRATE": _bool(env.get("SCHULKASSE_AUTO_MIGRATE"), True),
         "SESSION_TIMEOUT_SEKUNDEN": 8 * 3600,
         "TESTING": False,
     }

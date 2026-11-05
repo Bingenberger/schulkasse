@@ -17,7 +17,14 @@ def utcnow():
 class Database:
     """Thin wrapper around sqlite3 with nestable transactions."""
 
-    def __init__(self, path):
+    def __init__(self, path, create=True):
+        if not create:
+            # Readiness probe: never create the file or its directory.
+            self.conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, isolation_level=None,
+                                        check_same_thread=False)
+            self.conn.row_factory = sqlite3.Row
+            self._depth = 0
+            return
         if path != ":memory:":
             Path(path).parent.mkdir(parents=True, exist_ok=True)
         self.conn = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
@@ -78,6 +85,10 @@ def migrate(db):
         " version TEXT PRIMARY KEY, angewendet_am TIMESTAMP NOT NULL)"
     )
     done = {r[0] for r in db.all("SELECT version FROM schema_migration")}
+    unknown = done - {p.stem for p in MIGRATIONS_DIR.glob("*.sql")}
+    if unknown:
+        raise RuntimeError("Datenbank stammt aus einer neueren Version (Migrationen "
+                           + ", ".join(sorted(unknown)) + "); keine Änderung.")
     applied = []
     for path in sorted(MIGRATIONS_DIR.glob("*.sql")):
         version = path.stem
@@ -98,6 +109,16 @@ def migrate(db):
         applied.append(version)
     db.execute("PRAGMA foreign_keys = ON")
     return applied
+
+
+def schema_status(db):
+    """(ready, missing, unknown): all bundled migrations applied and none from a newer version."""
+    files = {p.stem for p in MIGRATIONS_DIR.glob("*.sql")}
+    if not db.one("SELECT 1 FROM sqlite_master WHERE type='table' AND name='schema_migration'"):
+        return False, sorted(files), []
+    done = {r[0] for r in db.all("SELECT version FROM schema_migration")}
+    missing, unknown = sorted(files - done), sorted(done - files)
+    return not missing and not unknown, missing, unknown
 
 
 def get_db():
