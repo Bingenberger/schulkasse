@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Kontoauszug {{ a.nummer }}/{{ a.jahr }} bearbeiten{% endblock %}
+{% block content %}
+<p class="brotkrumen"><a href="{{ url_for('kontoauszuege.detail', auszug_id=a.id) }}">{{ icon('arrow-left') }} Zurück zur Überwachungsliste</a></p>
+<h1>{{ icon('pencil-simple') }} Kontoauszug {{ a.nummer }}/{{ a.jahr }} bearbeiten <small>{{ konto.bezeichnung }}</small></h1>
+{% if a.geprueft_am %}
+<p class="hinweis">{{ icon('lock') }} Dieser Kontoauszug ist als geprüft vermerkt und kann erst nach Aufheben der Prüfung geändert werden.</p>
+{% endif %}
+<form method="post" class="formular karte">
+  {{ csrf() }}
+  <div class="zeile">
+    <div class="feld feld-klein"><label for="nummer">Auszug Nr.</label><input id="nummer" name="nummer" type="number" min="1" value="{{ werte.nummer or '' }}" required></div>
+    <div class="feld"><label for="datum_von">Zeitraum von</label><input id="datum_von" type="date" name="datum_von" value="{{ werte.datum_von or '' }}" required></div>
+    <div class="feld"><label for="datum_bis">bis</label><input id="datum_bis" type="date" name="datum_bis" value="{{ werte.datum_bis or '' }}" required></div>
+  </div>
+  <div class="feld"><label for="endsaldo">Endsaldo laut Kontoauszug</label>
+    <input id="endsaldo" name="endsaldo" inputmode="decimal" value="{% if werte.endsaldo is defined %}{{ werte.endsaldo }}{% elif werte.endsaldo_cent is not none %}{{ format_cent(werte.endsaldo_cent, False) }}{% endif %}"></div>
+  <div class="feld"><label for="notiz">Notiz</label><input id="notiz" name="notiz" maxlength="300" value="{{ werte.notiz or '' }}"></div>
+  <div class="aktionen"><button type="submit" {% if a.geprueft_am %}disabled{% endif %}>{{ icon('floppy-disk') }} Speichern</button>
+    <a href="{{ url_for('kontoauszuege.detail', auszug_id=a.id) }}">Abbrechen</a></div>
+</form>
+{% if not a.geprueft_am %}
+<form method="post" action="{{ url_for('kontoauszuege.loeschen', auszug_id=a.id) }}" class="gefahrenzone">
+  {{ csrf() }}
+  <button type="submit" class="gefahr" data-confirm="Kontoauszug {{ a.nummer }}/{{ a.jahr }} wirklich löschen? Die Umsätze bleiben erhalten.">{{ icon('trash') }} Kontoauszug löschen</button>
+</form>
+{% endif %}
+{% endblock %}

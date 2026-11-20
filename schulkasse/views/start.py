@@ -33,7 +33,9 @@ def dashboard():
     importe = db.all("SELECT i.*, k.bezeichnung AS konto FROM import i JOIN konto k ON k.id=i.konto_id"
                      " ORDER BY i.id DESC LIMIT 5")
     projekte = projekte_uebersicht(db, schuljahr_id=sj["id"] if sj else None, status="offen")
+    from ..kontoauszug import status_uebersicht
     return render_template("dashboard.html", kontrolle=kontrolle, zahlen=zahlen, importe=importe,
+                           auszuege=status_uebersicht(db),
                            projekte=projekte, schuljahr=sj,
                            konten=db.scalar("SELECT COUNT(*) FROM konto", default=0))
 

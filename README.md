@@ -14,7 +14,9 @@ Es fließt kein Geld durch das System, es gibt keinen Bankzugriff, kein Elternpo
 ## Technik
 
 Python 3.12, Flask/Jinja2, SQLite (WAL, Fremdschlüssel), `segno` für QR-Codes, WeasyPrint für PDF, `argon2-cffi`
-für Passwörter, gunicorn hinter nginx. Kein Build-Schritt, kein npm, keine externen CDN-Aufrufe.
+für Passwörter, gunicorn hinter nginx. Kein Build-Schritt, kein npm, keine externen CDN-Aufrufe. Die Icons
+([Phosphor](https://phosphoricons.com), MIT-Lizenz) liegen als Webfont lokal unter `schulkasse/static/vendor/phosphor/`;
+in Templates: `{{ icon('house') }}`.
 
 ```
 schulkasse/
@@ -26,6 +28,8 @@ schulkasse/
   epc.py           EPC-QR-Code (EPC069-12)
   briefe.py        Serienbrief und PDF-Erzeugung
   auswertung.py    Kennzahlen, Kontrollrechnung, Kassenbuch, Erinnerungsliste
+  kontoauszug.py   Kontoauszüge und Überwachungslisten (Richtlinie Schulgirokonten § 8)
+  klassenliste.py  Zahlungsstatus je Kind und Klasse für die Klassenleitungen
   anonymisierung.py  Anonymisierungslauf (F11.2)
   stammdaten.py    Schuljahre, Klassen, Kinder, CSV-Import, Schuljahreswechsel
   testdaten.py     Demo-Daten und Generator für synthetische CAMT-Dateien (F12.4)
@@ -345,6 +349,46 @@ zuordnen …“*. Bei einer Abbuchung entsteht ein Ausgangsposten, dem der Umsat
 Haken „Das Geld kommt zurück“ wird zusätzlich ein offener Eingangsposten „Rückzahlung: …“ über denselben Betrag
 angelegt, dem das Matching die spätere Erstattung zuordnen kann (bei Eingängen entsprechend ein Ausgangsposten
 „Auszahlung: …“).
+
+### Kontoauszüge und Überwachungslisten (Richtlinie Schulgirokonten)
+
+Nach § 8 der Richtlinie über die Führung von Schulgirokonten ist für **jeden Kontoauszug jedes Kontos** eine
+Überwachungsliste nach Anlage 1 zu führen. Die CAMT.052-Dateien der Bank enthalten keine Auszugsnummern, deshalb
+werden die Kontoauszüge unter *Nachweise → Kontoauszüge & ÜL* von Hand erfasst: Nummer, Zeitraum und Endsaldo laut
+Auszug. Alle gebuchten Umsätze, deren Buchungsdatum im Zeitraum liegt, gehören automatisch dazu. Für den nächsten
+Auszug werden Nummer und Zeitraum vorgeschlagen (die Nummer beginnt mit dem neuen Jahr wieder bei 1).
+
+Die Überwachungsliste zeigt Lfd.-Nr., Datum, Klasse, Empfänger/Einzahler, Zahlungsgrund (Projekt und Zahlcode aus
+der Zuordnung), Einnahme/Ausgabe, Auszugs-Nr., laufenden Kontostand und Anmerkungen – als Seite, als **PDF im Layout
+der Anlage 1** (Querformat, mit Bestätigungsfeld für die Unterschrift) und als **Excel-Datei (xlsx)** im selben
+Aufbau. Alle Listen eines Jahres gibt es als ein PDF bzw. als eine Excel-Datei mit einem Blatt je Auszug. Den Kopf füllen Schulname und *Anschrift der Schule* (Briefvorlage) sowie das
+*Geldinstitut* (Konto).
+
+Die App prüft je Auszug: Endsaldo laut Auszug = berechneter Endsaldo, Anfangssaldo = Endsaldo des vorherigen Auszugs,
+keine Lücken zwischen den Zeiträumen, keine Umsätze außerhalb eines Auszugs, kein negativer Kontostand. Eine
+**Anmerkung je Umsatz** (z. B. Genehmigung einer Kartenzahlung nach § 4) wird auf der Umsatzseite eingetragen.
+Nach der Kontrolle kann eine bevollmächtigte Person die Liste *als geprüft vermerken*; danach ist der Auszug gesperrt.
+Ändert sich der Inhalt später (z. B. durch eine neue Zuordnung), zeigt die App „seitdem geändert“. Die
+Unterschrift auf dem Ausdruck ersetzt der Vermerk nicht.
+
+### Jahresendmitteilung an die Stadt
+
+*Nachweise → Jahresendmitteilung* erstellt die Bescheinigung der Kontostände aller Konten zum 31.12. (§ 9 der
+Richtlinie) als PDF an Schulverwaltung und Fachbereich 2 – Finanzen. Weist ein Konto einen Bestand aus, wird er
+nach § 6 Abs. 2 begründet: Die App schlüsselt ihn nach Projektmitteln auf (laufend bzw. Restmittel abgeschlossener
+Projekte) und weist Beträge ohne Projekt gesondert aus (nicht zugeordnete Umsätze, nicht verteilter Anfangsbestand,
+ignorierte Umsätze wie Gebühren). Eine ergänzende Begründung kann frei eingetragen werden. Liegen noch nicht alle
+Umsätze bis zum 31.12. vor (Mitteilung vor den Weihnachtsferien), werden die Stände als vorläufig gekennzeichnet.
+
+### Erinnerungszettel und Klassenlisten
+
+*Erinnerungsliste → Erinnerungszettel drucken* erzeugt kleine Zettel zum Ausschneiden (8 je A4-Seite im Format A7
+oder 4 je Seite im Format A6) mit offenem Betrag, Zahlungsangaben und QR-Code, nach Klassen sortiert. Ohne Auswahl
+werden alle aufgeführten Posten gedruckt, sonst nur die angehakten. Lehrkräfte können das für ihre eigenen Projekte.
+
+*Eltern & Klassen → Klassenlisten* erzeugt je Klasse eine PDF-Seite für die Klassenleitung: alle aktiven Kinder
+mit dem Zahlungsstatus je Projekt (bezahlt, offen, Restbetrag). Kinder mit BuT-/Härtefallstatus und erlassene
+Beiträge erscheinen wie „kein Beitrag“ (–). Einzelne Klassen lassen sich auf ausgewählte Projekte beschränken.
 
 ## CLI-Befehle
 

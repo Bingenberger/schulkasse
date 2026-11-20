@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Erinnerungszettel</title>
+{% set hoch = pro_seite == 4 %}
+<style>
+  @page { size: A4; margin: 0; }
+  body { margin: 0; font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; color: #111;
+    font-size: {{ '9pt' if hoch else '7.4pt' }}; line-height: 1.3; }
+  .seite { width: 210mm; height: 296mm; page-break-after: always; overflow: hidden; }
+  .seite:last-child { page-break-after: auto; }
+  .zettel { float: left; box-sizing: border-box; width: 104.9mm; height: {{ '148mm' if hoch else '74mm' }};
+    padding: {{ '9mm 9mm' if hoch else '5mm 6mm' }}; border-right: .4pt dashed #999; border-bottom: .4pt dashed #999;
+    overflow: hidden; position: relative; }
+  .zettel:nth-child(2n) { border-right: 0; }
+  .kopf { border-bottom: .6pt solid #1f5f8b; padding-bottom: 1mm; margin-bottom: {{ '3mm' if hoch else '1.6mm' }}; }
+  .kopf::after { content: ""; display: block; clear: both; }
+  .schule { float: left; font-weight: bold; color: #1f5f8b; max-width: 60mm; }
+  .schule img { max-height: {{ '10mm' if hoch else '6.5mm' }}; max-width: 40mm; }
+  .titel { float: right; font-weight: bold; text-transform: uppercase; letter-spacing: .06em; font-size: {{ '8pt' if hoch else '6.6pt' }};
+    color: #8a5300; background: #fff2d9; padding: .5mm 1.6mm; border-radius: 1mm; }
+  .an { margin-bottom: 1.2mm; }
+  .an b { font-size: {{ '11pt' if hoch else '8.6pt' }}; }
+  .betrag { font-size: {{ '13pt' if hoch else '10pt' }}; font-weight: bold; }
+  table.zahlung { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.zahlung td.qr { width: {{ '36mm' if hoch else '25.5mm' }}; text-align: right; vertical-align: top; padding: 0; }
+  table.zahlung td.qr img { width: {{ '34mm' if hoch else '24mm' }}; height: {{ '34mm' if hoch else '24mm' }}; }
+  table.zahlung td.angaben { vertical-align: top; padding: 0; }
+  table.angaben { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: {{ '8.4pt' if hoch else '6.8pt' }}; }
+  table.angaben th { width: {{ '20mm' if hoch else '14mm' }}; text-align: left; font-weight: normal; color: #555;
+    padding: .2mm 1.5mm .2mm 0; vertical-align: top; }
+  table.angaben td { padding: .2mm 0; font-weight: bold; overflow-wrap: anywhere; word-break: break-word; }
+  .qr-gross { text-align: center; margin-top: 4mm; font-size: 7.5pt; color: #555; }
+  .qr-gross img { width: 40mm; height: 40mm; }
+  .mono { font-family: "DejaVu Sans Mono", monospace; }
+  .fuss { position: absolute; left: {{ '9mm' if hoch else '6mm' }}; right: {{ '9mm' if hoch else '6mm' }}; bottom: {{ '7mm' if hoch else '3.2mm' }};
+    font-size: {{ '7.6pt' if hoch else '6pt' }}; color: #444; }
+</style>
+</head>
+<body>
+{% for seite in seiten %}
+<div class="seite">
+  {% for s in seite %}{% set po = s.posten %}
+  <div class="zettel">
+    <div class="kopf">
+      <div class="schule">{% if cfg.logo_uri %}<img src="{{ cfg.logo_uri }}" alt="">{% else %}{{ cfg.schulname }}{% endif %}</div>
+      <div class="titel">Zahlungserinnerung</div>
+    </div>
+    <div class="an">An die Eltern von <b>{{ po.vorname }} {{ po.nachname }}</b>, Klasse {{ po.klasse }}</div>
+    <p style="margin:0 0 1.4mm">Für <b>{{ s.projekt.bezeichnung }}</b> ist noch <span class="betrag">{{ s.betrag|euro }}</span> offen{% if po.faellig_am %} (fällig seit {{ po.faellig_am|datum }}){% endif %}. Bitte überweisen Sie den Betrag bald:</p>
+    <table class="zahlung"><tr>
+      <td class="angaben"><table class="angaben">
+        <tr><th>Empfänger</th><td>{{ s.konto.inhaber }}</td></tr>
+        <tr><th>IBAN</th><td class="mono">{{ s.konto.iban|iban }}</td></tr>
+        <tr><th>Betrag</th><td>{{ s.betrag|euro }}</td></tr>
+        <tr><th>Zweck</th><td class="mono">{{ s.zweck }}</td></tr>
+      </table></td>
+      {% if s.qr and not hoch %}<td class="qr"><img src="{{ s.qr }}" alt="QR-Code"></td>{% endif %}
+    </tr></table>
+    {% if s.qr and hoch %}<div class="qr-gross"><img src="{{ s.qr }}" alt="QR-Code"><br>Mit der Banking-App scannen</div>{% endif %}
+    <div class="fuss">Schon bezahlt? Dann ist dieser Zettel erledigt – vielen Dank! · {{ cfg.ort }}, {{ heute.strftime('%d.%m.%Y') }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endfor %}
+</body>
+</html>

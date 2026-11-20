@@ -191,7 +191,10 @@ def detail(umsatz_id):
     projekte = db.all("SELECT id, bezeichnung, kurzcode FROM projekt WHERE status='offen' ORDER BY bezeichnung")
     belege = db.all("SELECT b.* FROM beleg b JOIN zuordnung z ON z.id=b.zuordnung_id WHERE z.bankumsatz_id=?",
                     (umsatz_id,))
+    from ..kontoauszug import auszug_zum_umsatz
+    anmerkung = db.scalar("SELECT text FROM umsatz_anmerkung WHERE bankumsatz_id=?", (umsatz_id,), "")
     return render_template("umsatz_detail.html", u=u, zuordnungen=zuordnungen, verteilt=verteilt,
+                           anmerkung=anmerkung, auszug=auszug_zum_umsatz(db, u),
                            rest=abs(u["betrag_cent"]) - verteilt, vorschlaege=_vorschlaege(db, [umsatz_id]).get(umsatz_id, []),
                            projekte=projekte, ignoriert=ignoriert, belege=belege,
                            kategorien={k: v for k, v in KATEGORIEN.items() if k != "elternbeitrag"})

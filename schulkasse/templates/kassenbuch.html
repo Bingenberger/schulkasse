@@ -12,8 +12,8 @@
   <div class="feld"><label for="von">von</label><input id="von" type="date" name="von" value="{{ von }}"></div>
   <div class="feld"><label for="bis">bis</label><input id="bis" type="date" name="bis" value="{{ bis }}"></div>
   <button type="submit">Anzeigen</button>
-  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='csv') }}">CSV</a>
-  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='pdf') }}">PDF</a>
+  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='csv') }}">{{ icon('file-csv') }} CSV</a>
+  <a class="knopf zweit" href="{{ url_for('auswertungen.kassenbuch_view', konto=konto_id, von=von, bis=bis, format='pdf') }}">{{ icon('file-pdf') }} PDF</a>
 </form>
 <dl class="kennzahlen">
   <div><dt>Anfangssaldo</dt><dd>{{ kb.anfangssaldo|euro }}</dd></div>

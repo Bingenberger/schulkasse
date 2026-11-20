@@ -10,6 +10,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 PLATZHALTER_BRIEF = {
     "schulname": "[PLATZHALTER: Name der Schule]",
     "briefkopf": "[PLATZHALTER: Briefkopf, Anschrift, Kontaktdaten]",
+    "schulanschrift": "",
     "logo": "",
     "ort": "Niederkassel",
     "standardtext": "[PLATZHALTER: Standardtext des Elternbriefs]",

@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Jahresendmitteilung {{ jahr }}{% endblock %}
+{% block content %}
+<h1>{{ icon('stamp') }} Jahresendmitteilung <small>Kontostände zum {{ v.stichtag|datum }}</small></h1>
+<p class="leise einleitung">Nach § 9 der Richtlinie Schulgirokonten bestätigt die Schulleitung vor den Weihnachtsferien die
+  Bestände aller Konten zum 31.12. Die Konten sind reine Durchlaufkonten: Weist ein Konto einen Bestand aus, ist er nach
+  § 6 Abs. 2 zu begründen. Die Begründung ergibt sich hier aus den Projektmitteln, aus denen sich der Bestand zusammensetzt.</p>
+
+<form class="filter" method="get">
+  <div class="feld"><label for="jahr">Jahr</label>
+    <select id="jahr" name="jahr" data-autosubmit>{% for j in jahre %}<option value="{{ j }}" {% if j == jahr %}selected{% endif %}>{{ j }}</option>{% endfor %}</select></div>
+  <noscript><button type="submit">Anzeigen</button></noscript>
+</form>
+
+{% if v.vorlaeufig %}
+<p class="hinweis">{{ icon('hourglass') }} Für mindestens ein Konto liegen noch nicht alle Umsätze bis zum {{ v.stichtag|datum }} vor.
+  Die Kontostände sind deshalb <strong>vorläufig</strong> (Stand der letzten importierten Umsätze) und werden im PDF so gekennzeichnet.</p>
+{% endif %}
+
+<div class="tabelle-wrap"><table>
+  <thead><tr><th>Konto</th><th>IBAN</th><th>Datenstand</th><th>Kontoauszug zum Stichtag</th><th class="r">Kontostand {{ v.stichtag|datum }}</th></tr></thead>
+  <tbody>
+  {% for k in v.konten %}
+  <tr><td class="stark">{{ k.konto.bezeichnung }}</td><td class="mono">{{ k.konto.iban|iban }}</td>
+    <td>{% if k.vorlaeufig %}<span class="badge b-teilweise">vorläufig</span> <small>Umsätze bis {{ k.letzter_import|datum if k.letzter_import else '–' }}</small>{% else %}<span class="badge b-erledigt">vollständig</span>{% endif %}</td>
+    <td>{% if k.auszug %}<a href="{{ url_for('kontoauszuege.detail', auszug_id=k.auszug.id) }}">Nr. {{ k.auszug.nummer }}/{{ k.auszug.jahr }}</a>
+      {% if k.auszug_passt %}<span class="badge b-erledigt">{{ icon('check') }} Endsaldo stimmt</span>{% elif k.auszug.datum_bis == v.stichtag %}<span class="badge b-offen">Endsaldo prüfen</span>{% endif %}
+      {% else %}<span class="leise">noch nicht erfasst</span>{% endif %}</td>
+    <td class="r stark">{{ k.saldo|euro }}</td></tr>
+  {% else %}<tr><td colspan="5" class="leer">Keine Konten angelegt.</td></tr>{% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="4">Summe aller Konten</td><td class="r">{{ v.gesamt|euro }}</td></tr></tfoot>
+</table></div>
+
+{% for k in v.konten %}
+<section class="karte">
+  <h2>{{ icon('bank') }} {{ k.konto.bezeichnung }} <small>{{ k.saldo|euro }}</small></h2>
+  {% if not k.saldo %}
+  <p>{{ icon('check-circle') }} Kein Bestand – keine Begründung erforderlich.</p>
+  {% else %}
+  <p>Der Bestand setzt sich aus folgenden Mitteln zusammen:</p>
+  <div class="tabelle-wrap"><table>
+    <thead><tr><th>Projekt</th><th>Code</th><th>Status</th><th class="r">Betrag</th></tr></thead>
+    <tbody>
+    {% for p in k.projekte %}
+    <tr><td><a href="{{ url_for('projekte.detail', projekt_id=p.id) }}">{{ p.bezeichnung }}</a></td><td class="mono">{{ p.kurzcode }}</td>
+      <td>{% if p.status == 'offen' %}laufend{% else %}abgeschlossen{% if p.abgeschlossen_am %} am {{ p.abgeschlossen_am|datum }}{% endif %} – Restmittel{% endif %}</td>
+      <td class="r">{{ p.betrag|euro }}</td></tr>
+    {% endfor %}
+    {% for text, betrag in k.sonstige %}
+    <tr><td colspan="3"><em>{{ text }}</em></td><td class="r">{{ betrag|euro }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="3">Kontostand</td><td class="r">{{ k.saldo|euro }}</td></tr></tfoot>
+  </table></div>
+  {% if k.sonstige %}<p class="hinweis">{{ icon('warning') }} Teile des Bestands gehören (noch) zu keinem Projekt. Am besten vor dem Erzeugen
+    <a href="{{ url_for('umsaetze.arbeitsliste') }}">offene Umsätze zuordnen</a> bzw. den Anfangsbestand verteilen.</p>{% endif %}
+  {% endif %}
+</section>
+{% endfor %}
+
+{% if v.konten %}
+<form method="post" class="formular karte breit">
+  {{ csrf() }}<input type="hidden" name="jahr" value="{{ jahr }}">
+  <h2>{{ icon('file-pdf') }} Mitteilung erzeugen</h2>
+  <div class="feld"><label for="bemerkung">Ergänzende Begründung (optional)</label>
+    <textarea id="bemerkung" name="bemerkung" rows="4" maxlength="2000" placeholder="z. B. Die Mittel der Klassenfahrt werden im Februar an das Busunternehmen überwiesen."></textarea>
+    <span class="hilfe">Erscheint im PDF unter der Aufstellung. Die Zusammensetzung nach Projekten steht ohnehin darin.</span></div>
+  <div><button type="submit">{{ icon('file-pdf') }} Jahresendmitteilung {{ jahr }} als PDF</button></div>
+</form>
+{% endif %}
+{% endblock %}

@@ -5,8 +5,8 @@
 <div class="kopfzeile">
   <h1>Geld je Projekt und Konto</h1>
   <div class="aktionen">
-    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='pdf') }}">PDF</a>
-    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='csv') }}">CSV</a>
+    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='pdf') }}">{{ icon('file-pdf') }} PDF</a>
+    <a class="knopf zweit" href="{{ url_for('auswertungen.kontenverteilung_view', nur=request.args.get('nur'), format='csv') }}">{{ icon('file-csv') }} CSV</a>
   </div>
 </div>
 <p class="leise">Saldo jedes Projekts, aufgeteilt auf die Konten. Grundlage sind die zugeordneten Umsätze, die

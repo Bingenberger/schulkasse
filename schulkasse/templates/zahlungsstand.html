@@ -5,8 +5,8 @@
 <div class="kopfzeile">
   <h1>Zahlungsstand <small>{{ p.bezeichnung }}</small></h1>
   <div class="aktionen">
-    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='csv', sort=sortierung, status=status or '') }}">CSV</a>
-    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='pdf', sort=sortierung, status=status or '') }}">PDF</a>
+    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='csv', sort=sortierung, status=status or '') }}">{{ icon('file-csv') }} CSV</a>
+    <a class="knopf zweit" href="{{ url_for('projekte.zahlungsstand_view', projekt_id=p.id, format='pdf', sort=sortierung, status=status or '') }}">{{ icon('file-pdf') }} PDF</a>
   </div>
 </div>
 {{ kennzahlen(kz) }}

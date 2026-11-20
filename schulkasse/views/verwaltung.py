@@ -95,7 +95,8 @@ def konten():
                 raise ValueError("Der Kontoinhaber darf höchstens 70 Zeichen lang sein (QR-Code).")
             eroeffnung = parse_betrag(f.get("eroeffnungssaldo")) if (f.get("eroeffnungssaldo") or "").strip() else None
             werte = (f["bezeichnung"].strip(), iban, (f.get("bic") or "").strip().upper() or None, f["inhaber"].strip(),
-                     1 if f.get("aktiv", "1") == "1" else 0, eroeffnung, datum_or_none(f.get("eroeffnungssaldo_datum")))
+                     1 if f.get("aktiv", "1") == "1" else 0, eroeffnung, datum_or_none(f.get("eroeffnungssaldo_datum")),
+                     (f.get("geldinstitut") or "").strip()[:120] or None)
             with db.tx():
                 if db.one("SELECT id FROM konto WHERE iban=? AND id<>?", (iban, kid or 0)):
                     raise ValueError("Diese IBAN ist bereits angelegt.")
@@ -104,14 +105,17 @@ def konten():
                     if alt["iban"] != iban and db.scalar("SELECT COUNT(*) FROM bankumsatz WHERE konto_id=?", (kid,), 0):
                         raise ValueError("Die IBAN kann nicht geändert werden, weil bereits Umsätze importiert wurden.")
                     db.execute("UPDATE konto SET bezeichnung=?, iban=?, bic=?, inhaber=?, aktiv=?,"
-                               " eroeffnungssaldo_cent=?, eroeffnungssaldo_datum=? WHERE id=?", werte + (kid,))
+                               " eroeffnungssaldo_cent=?, eroeffnungssaldo_datum=?, geldinstitut=? WHERE id=?",
+                               werte + (kid,))
                     protokolliere(db, "konto.aendern", "konto", kid, alt=alt, neu=dict(zip(
-                        ("bezeichnung", "iban", "bic", "inhaber", "aktiv", "eroeffnungssaldo_cent", "datum"), werte)))
+                        ("bezeichnung", "iban", "bic", "inhaber", "aktiv", "eroeffnungssaldo_cent", "datum", "geldinstitut"),
+                        werte)))
                 else:
                     kid = db.insert("INSERT INTO konto (bezeichnung, iban, bic, inhaber, aktiv, eroeffnungssaldo_cent,"
-                                    " eroeffnungssaldo_datum) VALUES (?,?,?,?,?,?,?)", werte)
+                                    " eroeffnungssaldo_datum, geldinstitut) VALUES (?,?,?,?,?,?,?,?)", werte)
                     protokolliere(db, "konto.anlegen", "konto", kid, neu=dict(zip(
-                        ("bezeichnung", "iban", "bic", "inhaber", "aktiv", "eroeffnungssaldo_cent", "datum"), werte)))
+                        ("bezeichnung", "iban", "bic", "inhaber", "aktiv", "eroeffnungssaldo_cent", "datum", "geldinstitut"),
+                        werte)))
             flash("Konto gespeichert.", "ok")
             return redirect(url_for("verwaltung.konten"))
         except (ValueError, BetragFehler) as exc:

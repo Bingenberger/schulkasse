@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Kontoauszüge{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>{{ icon('files') }} Kontoauszüge &amp; Überwachungslisten</h1>
+  {% if konto and auszuege %}
+  <div class="aktionen">
+    <a class="knopf zweit" href="{{ url_for('kontoauszuege.sammel_pdf', konto=konto.id, jahr=jahr or '') }}">{{ icon('file-pdf') }} Alle Listen{{ ' ' ~ jahr if jahr }} als PDF</a>
+    <a class="knopf zweit" href="{{ url_for('kontoauszuege.sammel_xlsx', konto=konto.id, jahr=jahr or '') }}">{{ icon('microsoft-excel-logo') }} … als Excel</a>
+  </div>
+  {% endif %}
+</div>
+<p class="leise einleitung">Nach § 8 der Richtlinie Schulgirokonten ist für jeden Kontoauszug eines jeden Kontos eine
+  Überwachungsliste zu führen. Die CAMT-Dateien der Bank enthalten keine Auszugsnummern – erfassen Sie deshalb hier Nummer,
+  Zeitraum und Endsaldo jedes Kontoauszugs. Alle gebuchten Umsätze im Zeitraum gehören automatisch dazu.</p>
+
+{% if not konten %}
+<p class="hinweis">Es ist noch kein Bankkonto angelegt.</p>
+{% else %}
+<form class="filter" method="get">
+  <div class="feld"><label for="konto">Konto</label>
+    <select id="konto" name="konto" data-autosubmit>{% for k in konten %}<option value="{{ k.id }}" {% if k.id == konto_id %}selected{% endif %}>{{ k.bezeichnung }}{% if not k.aktiv %} (inaktiv){% endif %}</option>{% endfor %}</select></div>
+  <div class="feld"><label for="jahr">Jahr</label>
+    <select id="jahr" name="jahr" data-autosubmit><option value="">alle</option>{% for j in jahre %}<option value="{{ j }}" {% if j == jahr %}selected{% endif %}>{{ j }}</option>{% endfor %}</select></div>
+  <noscript><button type="submit">Anzeigen</button></noscript>
+</form>
+
+{% if konto and not konto.geldinstitut and aktueller_user.rolle == 'admin' %}
+<p class="hinweis info">{{ icon('info') }} Für den Kopf der Überwachungsliste fehlt noch das Geldinstitut. <a href="{{ url_for('verwaltung.konten', id=konto.id) }}">Im Konto eintragen</a></p>
+{% endif %}
+{% if ohne and ohne.anzahl %}
+<p class="hinweis">{{ icon('warning') }} {{ ohne.anzahl }} gebuchte Umsätze ab {{ ohne.erstes|datum }} liegen in keinem erfassten Kontoauszug.
+  Bitte die fehlenden Auszüge erfassen.</p>
+{% endif %}
+
+<div class="tabelle-wrap"><table class="liste-auszuege">
+  <thead><tr><th>Auszug</th><th>Zeitraum</th><th class="r">Umsätze</th><th class="r">Anfangssaldo</th><th class="r">Endsaldo berechnet</th>
+    <th class="r">Endsaldo lt. Auszug</th><th>Abgleich</th><th>Prüfung</th><th></th></tr></thead>
+  <tbody>
+  {% for x in auszuege %}{% set a = x.auszug %}
+  <tr>
+    <td><a class="stark" href="{{ url_for('kontoauszuege.detail', auszug_id=a.id) }}">Nr. {{ a.nummer }}/{{ a.jahr }}</a></td>
+    <td>{{ a.datum_von|datum }} – {{ a.datum_bis|datum }}</td>
+    <td class="r">{{ x.anzahl }}</td>
+    <td class="r">{{ x.anfang|euro }}</td>
+    <td class="r">{{ x.ende|euro }}</td>
+    <td class="r">{{ a.endsaldo_cent|euro if a.endsaldo_cent is not none else '–' }}</td>
+    <td>{% if x.fehler %}<span class="badge b-offen" title="{{ x.hinweise|map(attribute=1)|join(' ') }}">{{ icon('x-circle') }} Abweichung</span>
+      {% elif a.endsaldo_cent is none %}<span class="badge b-teilweise">{{ icon('hourglass') }} Endsaldo fehlt</span>
+      {% else %}<span class="badge b-erledigt">{{ icon('check-circle') }} stimmt</span>{% endif %}</td>
+    <td>{% if a.geprueft_am %}<span class="badge {{ 'b-offen' if x.geaendert else 'b-erledigt' }}">{{ icon('seal-check') }} {{ a.geprueft_von_name }}</span>
+      {% if x.geaendert %}<small class="fehlertext">seitdem geändert</small>{% endif %}
+      {% else %}<span class="badge">ungeprüft</span>{% endif %}</td>
+    <td class="aktionen-zelle">
+      <a class="knopf klein zweit" href="{{ url_for('kontoauszuege.detail', auszug_id=a.id) }}" title="Überwachungsliste ansehen">{{ icon('list-checks') }}<span class="sr">Ansehen</span></a>
+      <a class="knopf klein zweit" href="{{ url_for('kontoauszuege.detail', auszug_id=a.id, format='pdf') }}" title="Überwachungsliste als PDF">{{ icon('file-pdf') }}<span class="sr">PDF</span></a>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="9" class="leer">{{ icon('tray') }} Noch keine Kontoauszüge erfasst.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>{{ icon('plus-circle') }} Kontoauszug erfassen</h2>
+<form method="post" class="formular karte breit">
+  {{ csrf() }}<input type="hidden" name="konto" value="{{ konto_id }}">
+  <div class="zeile">
+    <div class="feld feld-klein"><label for="nummer">Auszug Nr.</label><input id="nummer" name="nummer" type="number" min="1" value="{{ vorschlag.nummer or '' }}" required></div>
+    <div class="feld"><label for="datum_von">Zeitraum von</label><input id="datum_von" type="date" name="datum_von" value="{{ vorschlag.datum_von or '' }}" required></div>
+    <div class="feld"><label for="datum_bis">bis</label><input id="datum_bis" type="date" name="datum_bis" value="{{ vorschlag.datum_bis or '' }}" required></div>
+    <div class="feld"><label for="endsaldo">Endsaldo laut Kontoauszug</label><input id="endsaldo" name="endsaldo" inputmode="decimal" placeholder="z. B. 1.234,56" value="{{ vorschlag.endsaldo or '' }}">
+      <span class="hilfe">Kann auch später nachgetragen werden.</span></div>
+  </div>
+  <div class="feld"><label for="notiz">Notiz (optional)</label><input id="notiz" name="notiz" maxlength="300" value="{{ vorschlag.notiz or '' }}"></div>
+  <p class="hilfe">Das Jahr ergibt sich aus dem Ende des Zeitraums. Die Auszugsnummer zählt bei den meisten Banken in jedem Jahr neu ab 1.</p>
+  <div><button type="submit">{{ icon('plus') }} Kontoauszug erfassen</button></div>
+</form>
+{% endif %}
+{% endblock %}

@@ -9,7 +9,7 @@ description = "Beitrags- und Kassenbuchverwaltung für die GGS Niederkassel"
 requires-python = ">=3.12"
 dependencies = [
     "Flask", "segno", "weasyprint", "argon2-cffi", "gunicorn", "python-dotenv", "tzdata",
-    "pyotp>=2.9,<3", "cryptography>=46,<47",
+    "pyotp>=2.9,<3", "cryptography>=46,<47", "openpyxl>=3.1,<4",
 ]
 
 [project.scripts]
@@ -19,7 +19,7 @@ schulkasse = "schulkasse.cli:main"
 include = ["schulkasse*"]
 
 [tool.setuptools.package-data]
-schulkasse = ["migrations/*.sql", "templates/*.html", "templates/pdf/*.html", "static/*"]
+schulkasse = ["migrations/*.sql", "templates/*.html", "templates/pdf/*.html", "static/*", "static/vendor/phosphor/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, betrag %}
+{% block title %}Überwachungsliste {{ ul.bezeichnung }}{% endblock %}
+{% block content %}
+{% set a = ul.auszug %}
+<p class="brotkrumen"><a href="{{ url_for('kontoauszuege.uebersicht', konto=ul.konto.id) }}">{{ icon('arrow-left') }} Alle Kontoauszüge</a>
+  {% if vorher %} · <a href="{{ url_for('kontoauszuege.detail', auszug_id=vorher.id) }}">{{ icon('caret-left') }} vorheriger</a>{% endif %}
+  {% if nachher %} · <a href="{{ url_for('kontoauszuege.detail', auszug_id=nachher.id) }}">nächster {{ icon('caret-right') }}</a>{% endif %}</p>
+<div class="kopfzeile">
+  <h1>{{ icon('list-checks') }} Überwachungsliste <small>Kontoauszug Nr. {{ ul.bezeichnung }} · {{ ul.konto.bezeichnung }}</small></h1>
+  <div class="aktionen">
+    <a class="knopf" href="{{ url_for('kontoauszuege.detail', auszug_id=a.id, format='pdf') }}">{{ icon('file-pdf') }} PDF (Anlage 1)</a>
+    <a class="knopf zweit" href="{{ url_for('kontoauszuege.detail', auszug_id=a.id, format='xlsx') }}">{{ icon('microsoft-excel-logo') }} Excel (xlsx)</a>
+    <a class="knopf zweit" href="{{ url_for('kontoauszuege.bearbeiten', auszug_id=a.id) }}">{{ icon('pencil-simple') }} Bearbeiten</a>
+  </div>
+</div>
+<p class="leise">Zeitraum {{ a.datum_von|datum }} – {{ a.datum_bis|datum }} · IBAN {{ ul.konto.iban|iban }}{% if ul.konto.geldinstitut %} · {{ ul.konto.geldinstitut }}{% endif %}{% if a.notiz %} · {{ a.notiz }}{% endif %}</p>
+
+<dl class="kennzahlen">
+  <div><dt>{{ icon('flag') }} Anfangssaldo</dt><dd>{{ ul.anfangssaldo|euro }}</dd></div>
+  <div><dt>{{ icon('arrow-circle-down-right') }} Einnahmen</dt><dd class="pos">{{ ul.eingaenge|euro }}</dd></div>
+  <div><dt>{{ icon('arrow-circle-up-right') }} Ausgaben</dt><dd class="neg">{{ ul.ausgaenge|euro }}</dd></div>
+  <div><dt>{{ icon('flag-checkered') }} Endsaldo berechnet</dt><dd>{{ ul.endsaldo|euro }}</dd></div>
+  <div class="{{ 'kz-ok' if a.endsaldo_cent == ul.endsaldo else 'kz-fehler' }}"><dt>{{ icon('receipt') }} Endsaldo lt. Auszug</dt>
+    <dd>{{ a.endsaldo_cent|euro if a.endsaldo_cent is not none else '–' }}</dd></div>
+</dl>
+
+{% for stufe, text in ul.hinweise %}
+<p class="hinweis {{ 'info' if stufe == 'info' else ('fehler' if stufe == 'fehler' else '') }}">{{ icon('warning-circle' if stufe == 'fehler' else ('info' if stufe == 'info' else 'warning')) }} {{ text }}</p>
+{% endfor %}
+{% if ul.nicht_zugeordnet %}
+<p class="hinweis">{{ icon('question') }} {{ ul.nicht_zugeordnet }} Umsätze haben noch keinen Zahlungsgrund (nicht zugeordnet). <a href="{{ url_for('umsaetze.arbeitsliste') }}">Zur Zuordnung</a></p>
+{% endif %}
+{% if ul.negativ %}<p class="hinweis fehler">{{ icon('warning-circle') }} Der Kontostand war in diesem Zeitraum negativ – das Konto ist ein reines Guthabenkonto (§ 3 Abs. 5).</p>{% endif %}
+
+<div class="tabelle-wrap"><table class="ueberwachung">
+  <thead><tr><th class="r">Nr.</th><th>Datum</th><th>Klasse</th><th>Empfänger/Einzahler</th><th>Zahlungsgrund</th>
+    <th class="r">Einnahme</th><th class="r">Ausgabe</th><th class="r">Kontostand</th><th>Anmerkungen</th></tr></thead>
+  <tbody>
+    <tr class="saldozeile"><td></td><td colspan="6">Anfangsbestand</td><td class="r">{{ ul.anfangssaldo|euro }}</td><td>Startsaldo</td></tr>
+    {% for z in ul.zeilen %}
+    <tr class="{{ 'offen-zeile' if z.offen }}">
+      <td class="r leise">{{ z.nr }}</td>
+      <td><a href="{{ url_for('umsaetze.detail', umsatz_id=z.umsatz.id) }}">{{ z.datum|datum }}</a></td>
+      <td>{{ z.klasse }}</td><td>{{ z.name }}</td>
+      <td>{% if z.offen %}<span class="badge b-offen">nicht zugeordnet</span>{% else %}{{ z.grund }}{% endif %}
+        {% if z.zweck and z.zweck != z.grund %}<div class="zweck leise klein">{{ z.zweck|truncate(160) }}</div>{% endif %}</td>
+      <td class="r">{% if z.einnahme %}<span class="betrag pos">{{ z.einnahme|euro }}</span>{% endif %}</td>
+      <td class="r">{% if z.ausgabe %}<span class="betrag neg">{{ z.ausgabe|euro }}</span>{% endif %}</td>
+      <td class="r {{ 'neg' if z.stand < 0 }}">{{ z.stand|euro }}</td>
+      <td class="klein">{{ z.anmerkung }}{% if not a.geprueft_am %} <a href="{{ url_for('umsaetze.detail', umsatz_id=z.umsatz.id) }}#anmerkung" title="Anmerkung bearbeiten">{{ icon('note-pencil') }}<span class="sr">Anmerkung bearbeiten</span></a>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" class="leer">{{ icon('tray') }} Keine gebuchten Umsätze in diesem Zeitraum.</td></tr>
+    {% endfor %}
+  </tbody>
+  <tfoot><tr><td></td><td colspan="4">Endbestand</td><td class="r">{{ ul.eingaenge|euro }}</td><td class="r">{{ ul.ausgaenge|euro }}</td>
+    <td class="r">{{ ul.endsaldo|euro }}</td><td>Endsaldo</td></tr></tfoot>
+</table></div>
+
+<section class="karte pruefung {{ 'geprueft' if a.geprueft_am and not ul.geaendert }}">
+  <h2>{{ icon('seal-check') }} Prüfung (§ 8 Abs. 1)</h2>
+  {% if a.geprueft_am %}
+    <p>Als richtig und vollständig geprüft vermerkt von <strong>{{ a.geprueft_von_name }}</strong> am {{ a.geprueft_am|zeit }}.</p>
+    {% if ul.geaendert %}<p class="hinweis fehler">{{ icon('warning-circle') }} Seit der Prüfung hat sich der Inhalt der Liste geändert (z. B. Zuordnungen oder Anmerkungen). Bitte erneut prüfen.</p>{% endif %}
+    <details class="aufklapp"><summary>Prüfvermerk aufheben</summary>
+      <form method="post" action="{{ url_for('kontoauszuege.pruefen', auszug_id=a.id) }}" class="zeile">
+        {{ csrf() }}<input type="hidden" name="aufheben" value="1">
+        <div class="feld"><label for="grund">Grund</label><input id="grund" name="grund" required maxlength="300"></div>
+        <button type="submit" class="zweit">Aufheben</button>
+      </form>
+    </details>
+  {% else %}
+    <p>Nach Abschluss des Abrechnungszeitraums prüft eine bevollmächtigte Person die Liste auf Richtigkeit und Vollständigkeit
+      und bestätigt dies mit Datum und Unterschrift auf dem Ausdruck. Hier können Sie die Prüfung zusätzlich vermerken –
+      danach ist der Auszug gegen Änderungen gesperrt.</p>
+    <form method="post" action="{{ url_for('kontoauszuege.pruefen', auszug_id=a.id) }}">
+      {{ csrf() }}
+      <button type="submit" {% if a.endsaldo_cent is none or a.endsaldo_cent != ul.endsaldo %}disabled title="Endsaldo laut Auszug fehlt oder weicht ab"{% endif %}
+        data-confirm="Prüfung als {{ aktueller_user.anzeigename }} vermerken?">{{ icon('seal-check') }} Als geprüft vermerken</button>
+    </form>
+  {% endif %}
+</section>
+{% endblock %}
