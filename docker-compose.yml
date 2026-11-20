@@ -1,0 +1,34 @@
+services:
+  app:
+    build: {context: ., target: final}
+    image: schulkasse:0.1.0-dev
+    user: "10001:10001"
+    init: true
+    stop_grace_period: 40s
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs: ["/tmp:size=128m,mode=1777"]
+    mem_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+    environment:
+      SCHULKASSE_SECRET_KEY_FILE: /run/secrets/secret-key
+      SCHULKASSE_COOKIE_SECURE: ${SCHULKASSE_COOKIE_SECURE:-0}
+      SCHULKASSE_PROXY_IPS: ${SCHULKASSE_PROXY_IPS:-}
+      SCHULKASSE_MAX_UPLOAD_MB: ${SCHULKASSE_MAX_UPLOAD_MB:-20}
+      SCHULKASSE_ANONYMISIERUNG_FRIST_TAGE: ${SCHULKASSE_ANONYMISIERUNG_FRIST_TAGE:-730}
+    volumes:
+      - data:/data
+      - ${SCHULKASSE_SECRET_FILE:?Datei mit dem dauerhaften Schlüssel (mind. 32 Zeichen) angeben}:/run/secrets/secret-key:ro
+    ports: ["127.0.0.1:${SCHULKASSE_PORT:-5015}:8000"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 6
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}
+volumes:
+  data:

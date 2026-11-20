@@ -45,6 +45,10 @@ def test_monatsbericht_umbuchung_und_anfangsbestand(demo, admin_id, dateien):
     kopie = demo.scalar("SELECT id FROM projekt WHERE kurzcode='KOPIE'")
     ab.verteilen(demo, konto["id"], [{"projekt_id": spende, "betrag_cent": 100000}], admin_id)
     ub.anlegen(demo, spende, kopie, 25000, "Kopierkosten aus Spenden", admin_id)
+    # Fester Buchungszeitpunkt im Berichtsmonat: anlegen() stempelt "jetzt", der Test soll
+    # nicht davon abhängen, an welchem Tag er läuft.
+    demo.execute("UPDATE umbuchung SET erstellt_am='2026-09-15 10:00:00' WHERE grund=?",
+                 ("Kopierkosten aus Spenden",))
     v = monatsbericht(demo, 2026, 9)
     sp = next(p for p in v["projekte"] if p["kurzcode"] == "SPENDE")
     ko = next(p for p in v["projekte"] if p["kurzcode"] == "KOPIE")

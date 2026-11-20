@@ -81,6 +81,8 @@ class DbSessionInterface(SessionInterface):
         name = app.config.get("SESSION_COOKIE_NAME", "session")
         domain = self.get_cookie_domain(app)
         path = self.get_cookie_path(app)
+        if not session and session.new:
+            return  # nothing stored, nothing to delete: do not even open (or create) the database
         db = self._db(app)
         try:
             if not session:
