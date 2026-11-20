@@ -119,3 +119,40 @@ def serienbrief(db, projekt_id, modus, benutzer_id, posten_ids=None, text=None, 
                       neu={"anzahl": len(s), "modus": modus, "zahlcodes": [x["posten"]["zahlcode"] for x in s]},
                       benutzer_id=benutzer_id)
     return pdf, len(s)
+
+
+def erinnerungszettel(db, posten, benutzer_id, pro_seite=8, mit_qr=True):
+    """Small reminder slips to cut out (several per A4 page).
+
+    `posten` are rows of the reminder list (F8.4), which already excludes BuT
+    children and waived items. Returns (pdf bytes, number of slips) and records
+    the date of the reminder per item like a reminder letter (F7.4).
+    """
+    if pro_seite not in (4, 8):
+        pro_seite = 8
+    projekte = {}
+    zettel = []
+    for p in posten:
+        projekt = projekte.get(p["projekt_id"])
+        if projekt is None:
+            projekt = projekte[p["projekt_id"]] = db.one("SELECT * FROM projekt WHERE id=?", (p["projekt_id"],))
+        for s in seiten(db, projekt, [p], erinnerung=True):
+            s["projekt"] = projekt
+            if not mit_qr:
+                s["qr"] = None
+            zettel.append(s)
+    if not zettel:
+        raise BuchungsFehler("Für die Auswahl gibt es keine offenen Beträge, für die ein Zettel gedruckt werden kann.")
+    seitenliste = [zettel[i:i + pro_seite] for i in range(0, len(zettel), pro_seite)]
+    html = render_template("pdf/erinnerungszettel.html", seiten=seitenliste, cfg=brief_config(), heute=date.today(),
+                           pro_seite=pro_seite)
+    pdf = html_zu_pdf(html)
+    jetzt = utcnow()
+    with db.tx():
+        db.executemany("UPDATE offener_posten SET letzter_brief_am=? WHERE id=?",
+                       [(jetzt, x["posten"]["id"]) for x in zettel])
+        for projekt_id in {x["projekt"]["id"] for x in zettel}:
+            codes = [x["posten"]["zahlcode"] for x in zettel if x["projekt"]["id"] == projekt_id]
+            protokolliere(db, "brief.erinnerungszettel", "projekt", projekt_id,
+                          neu={"anzahl": len(codes), "zahlcodes": codes}, benutzer_id=benutzer_id)
+    return pdf, len(zettel)

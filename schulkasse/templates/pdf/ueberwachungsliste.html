@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Überwachungsliste {{ listen[0].konto.bezeichnung if listen }}</title>
+<style>
+  @page { size: A4 landscape; margin: 11mm 10mm 13mm;
+    @bottom-left { content: "Überwachungsliste nach § 8 Richtlinie Schulgirokonten · {{ cfg.fusszeile }} · erzeugt {{ erzeugt|zeit }} von {{ user.anzeigename|replace('"', '') }}"; font-size: 6.5pt; color: #666; }
+    @bottom-right { content: "Seite " counter(page) " von " counter(pages); font-size: 6.5pt; color: #666; } }
+  body { font-family: "DejaVu Sans", "Liberation Sans", Arial, sans-serif; font-size: 7.6pt; color: #111; }
+  .liste { page-break-after: always; }
+  .liste:last-child { page-break-after: auto; }
+  .anlage { font-size: 7pt; text-decoration: underline; margin-bottom: 2mm; }
+  h1 { font-size: 12pt; text-align: center; margin: 0 0 3mm; }
+  .kopf { width: 62%; border-collapse: collapse; margin: 0 0 2mm 8mm; }
+  .kopf th { text-align: right; font-weight: bold; padding: .6mm 2mm .6mm 0; width: 52mm; vertical-align: top; white-space: nowrap; }
+  .kopf td { border-bottom: .5pt solid #111; padding: .6mm 1mm; white-space: pre-line; }
+  .einleitung { font-size: 7pt; margin: 2mm 0 2.5mm; }
+  .auszugnr { display: inline-block; border: .8pt solid #111; padding: .8mm 3mm; font-weight: bold; margin-bottom: 2mm; }
+  .auszugnr span { font-weight: normal; margin-left: 3mm; }
+  table.ul { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.ul th, table.ul td { border: .5pt solid #111; padding: .7mm 1mm; vertical-align: top; overflow-wrap: anywhere; }
+  table.ul thead th { background: #f0f0f0; font-size: 7pt; text-align: center; vertical-align: middle; }
+  table.ul thead th.gruppe { background: #fff; }
+  table.ul td.r { text-align: right; white-space: nowrap; }
+  table.ul td.c { text-align: center; }
+  table.ul td.d { white-space: nowrap; }
+  table.ul .schwarz { background: #111; }
+  table.ul tr.saldo td { font-weight: bold; background: #fafafa; }
+  table.ul tfoot td { font-weight: bold; border-top: 1.2pt solid #111; }
+  .zweck { display: block; color: #555; font-size: 6.4pt; margin-top: .4mm; }
+  .neg { color: #b00; font-weight: bold; }
+  .fussnote { font-size: 6.5pt; margin-top: 1.5mm; }
+  .unten { margin-top: 4mm; width: 100%; }
+  .unten::after { content: ""; display: block; clear: both; }
+  .abgleich { float: left; width: 55%; font-size: 7.4pt; }
+  .abgleich table { border-collapse: collapse; }
+  .abgleich td { padding: .5mm 2mm .5mm 0; }
+  .abgleich td.r { text-align: right; }
+  .ok { color: #1e6b3a; font-weight: bold; }
+  .fehler { color: #b00; font-weight: bold; }
+  .bestaetigung { float: right; width: 38%; font-size: 7.4pt; }
+  .bestaetigung .linie { border-bottom: .6pt solid #111; height: 12mm; margin-top: 1mm; }
+  .bestaetigung .unterschrift { font-size: 6.5pt; color: #444; margin-top: .6mm; }
+  .vermerk { font-size: 6.8pt; color: #333; margin-top: 1.5mm; }
+  col.nr { width: 8mm; } col.datum { width: 17mm; } col.klasse { width: 12mm; } col.name { width: 30mm; }
+  col.betrag { width: 17mm; } col.auszug { width: 14mm; } col.anm { width: 42mm; }
+</style>
+</head>
+<body>
+{% for ul in listen %}
+<section class="liste">
+  <div class="anlage">ANLAGE 1: Überwachungsliste Einnahmen und Ausgaben</div>
+  <h1>Überwachungsliste (ÜL) für Einnahmen und Ausgaben</h1>
+  <table class="kopf">
+    <tr><th>Name und Anschrift der Schule:</th><td><b>{{ cfg.schulname }}</b>{% if schulanschrift %}
+{{ schulanschrift }}{% endif %}</td></tr>
+    <tr><th>Geldinstitut:</th><td>{{ ul.konto.geldinstitut or '' }}</td></tr>
+    <tr><th>IBAN:</th><td>{{ ul.konto.iban|iban }}</td></tr>
+    <tr><th>Bereich / Bezeichnung des Kontos (§ 4):</th><td>{{ ul.konto.bezeichnung }}</td></tr>
+  </table>
+  <p class="einleitung">In dieser Überwachungsliste sind sämtliche Kontobewegungen des oben genannten Schulgirokontos für den
+    jeweiligen Zahlungsbereich zu erfassen. Die Verwendung der Mittel ist entsprechend nachzuweisen bzw. zu erläutern.</p>
+  <div class="auszugnr">Kontoauszug Nr. {{ ul.bezeichnung }}<span>Zeitraum {{ ul.auszug.datum_von|datum }} – {{ ul.auszug.datum_bis|datum }}</span></div>
+
+  <table class="ul">
+    <colgroup><col class="nr"><col class="datum"><col class="klasse"><col class="name"><col>
+      <col class="betrag"><col class="betrag"><col class="betrag"><col class="auszug"><col class="betrag"><col class="anm"></colgroup>
+    <thead>
+      <tr><th rowspan="2">Lfd.-<br>Nr.</th><th rowspan="2">Datum</th><th rowspan="2">Klasse</th><th rowspan="2">Empfänger/ Einzahler</th>
+        <th rowspan="2">Zahlungsgrund lt. beigefügter Belege/Rechnungen</th>
+        <th rowspan="2">Einnahme in €</th><th rowspan="2">Ausgabe in €</th>
+        <th colspan="3" class="gruppe">Schulgirokonto:</th><th rowspan="2">ggf. Anmerkungen</th></tr>
+      <tr><th>Buchung in €</th><th>Auszugs-<br>Nr.:</th><th>Konto&shy;stand in €*¹</th></tr>
+    </thead>
+    <tbody>
+      <tr class="saldo"><td colspan="5" class="r">Anfangsbestand</td><td></td><td></td><td class="schwarz"></td>
+        <td class="c">{{ ul.bezeichnung }}</td><td class="r {{ 'neg' if ul.anfangssaldo < 0 }}">{{ ul.anfangssaldo|euro }}</td><td>Startsaldo</td></tr>
+      {% for z in ul.zeilen %}
+      <tr><td class="c">{{ z.nr }}</td><td class="d">{{ z.datum|datum }}</td><td>{{ z.klasse }}</td><td>{{ z.name }}</td>
+        <td>{{ z.grund }}{% if z.zweck and z.zweck != z.grund %}<span class="zweck">{{ z.zweck|truncate(160) }}</span>{% endif %}</td>
+        <td class="r">{{ z.einnahme|euro if z.einnahme }}</td><td class="r">{{ z.ausgabe|euro if z.ausgabe }}</td>
+        <td class="r">{{ z.buchung|euro }}</td><td class="c">{{ ul.bezeichnung }}</td>
+        <td class="r {{ 'neg' if z.stand < 0 }}">{{ z.stand|euro }}</td><td>{{ z.anmerkung }}</td></tr>
+      {% else %}
+      <tr><td colspan="11" class="c">Keine Kontobewegungen in diesem Zeitraum.</td></tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="5" class="r">Endbestand:</td><td class="r">{{ ul.eingaenge|euro }}</td><td class="r">{{ ul.ausgaenge|euro }}</td>
+        <td class="schwarz"></td><td class="c">{{ ul.zeilen|length }}</td><td class="r {{ 'neg' if ul.endsaldo < 0 }}">{{ ul.endsaldo|euro }}</td><td>Endsaldo</td></tr>
+    </tfoot>
+  </table>
+  <div class="fussnote">*¹ darf nicht negativ werden{% if ul.negativ %} – <span class="fehler">Achtung: Der Kontostand war in diesem Zeitraum negativ.</span>{% endif %}</div>
+
+  <div class="unten">
+    <div class="abgleich">
+      <table>
+        <tr><td>Anfangssaldo (= Endsaldo des vorhergehenden Auszugs)</td><td class="r">{{ ul.anfangssaldo|euro }}</td></tr>
+        <tr><td>+ Einnahmen</td><td class="r">{{ ul.eingaenge|euro }}</td></tr>
+        <tr><td>− Ausgaben</td><td class="r">{{ ul.ausgaenge|euro }}</td></tr>
+        <tr><td><b>= Endsaldo laut Überwachungsliste</b></td><td class="r"><b>{{ ul.endsaldo|euro }}</b></td></tr>
+        <tr><td>Endsaldo laut Kontoauszug</td><td class="r">{{ ul.auszug.endsaldo_cent|euro if ul.auszug.endsaldo_cent is not none else 'nicht erfasst' }}</td></tr>
+        <tr><td colspan="2">{% if ul.auszug.endsaldo_cent is none %}<span class="fehler">Abgleich mit dem Kontoauszug steht noch aus.</span>
+          {% elif ul.auszug.endsaldo_cent == ul.endsaldo %}<span class="ok">✓ stimmt mit dem Kontoauszug überein</span>
+          {% else %}<span class="fehler">✗ Abweichung {{ (ul.auszug.endsaldo_cent - ul.endsaldo)|euro }}</span>{% endif %}</td></tr>
+      </table>
+      {% if ul.nicht_zugeordnet %}<p class="fehler">{{ ul.nicht_zugeordnet }} Kontobewegung(en) noch ohne Zahlungsgrund (nicht zugeordnet).</p>{% endif %}
+      {% if ul.auszug.notiz %}<p>Notiz: {{ ul.auszug.notiz }}</p>{% endif %}
+    </div>
+    <div class="bestaetigung">
+      <b>Bestätigung (vollständig u. richtig):</b>
+      <div class="linie"></div>
+      <div class="unterschrift">Datum, Unterschrift der bevollmächtigten Person</div>
+      {% if ul.auszug.geprueft_am %}<div class="vermerk">In der Schulkasse als geprüft vermerkt von {{ ul.auszug.geprueft_von_name }}
+        am {{ ul.auszug.geprueft_am|zeit }}.{% if ul.geaendert %} <span class="fehler">Seitdem geändert!</span>{% endif %}</div>{% endif %}
+    </div>
+  </div>
+</section>
+{% endfor %}
+</body>
+</html>

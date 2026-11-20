@@ -19,7 +19,17 @@
     <tr><th>Referenzen</th><td class="mono">{{ u.bank_ref or '' }} {{ u.end_to_end_id or '' }}</td></tr>
     <tr><th>Geschäftsvorfall</th><td>{{ u.geschaeftsvorfall or '–' }}</td></tr>
     <tr><th>Import</th><td>{{ u.dateiname }} ({{ u.erstellt_am|zeit }})</td></tr>
+    <tr><th>Kontoauszug</th><td>{% if auszug %}<a href="{{ url_for('kontoauszuege.detail', auszug_id=auszug.id) }}"><i class="ph ph-list-checks" aria-hidden="true"></i> Nr. {{ auszug.nummer }}/{{ auszug.jahr }}</a>
+      {% if auszug.geprueft_am %}<span class="badge b-erledigt">geprüft</span>{% endif %}
+      {% elif u.status == 'BOOK' %}<span class="leise">noch keinem erfassten Kontoauszug zugeordnet</span> · <a href="{{ url_for('kontoauszuege.uebersicht', konto=u.konto_id) }}">Kontoauszug erfassen</a>{% else %}–{% endif %}</td></tr>
   </table></div>
+  <form method="post" action="{{ url_for('kontoauszuege.anmerkung', umsatz_id=u.id) }}" class="zeile anmerkung-form">
+    {{ csrf() }}<input type="hidden" name="zurueck" value="{{ request.path }}">
+    <div class="feld"><label for="anmerkung">Anmerkung für die Überwachungsliste</label>
+      <input id="anmerkung" name="anmerkung" maxlength="500" value="{{ anmerkung or '' }}" placeholder="z. B. Kartenzahlung genehmigt durch SL am …"
+        {% if auszug and auszug.geprueft_am %}disabled title="Der Kontoauszug ist als geprüft vermerkt."{% endif %}></div>
+    <button type="submit" class="zweit" {% if auszug and auszug.geprueft_am %}disabled{% endif %}><i class="ph ph-floppy-disk" aria-hidden="true"></i> Speichern</button>
+  </form>
 </div>
 
 <h2>Zuordnungen</h2>

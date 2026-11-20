@@ -13,10 +13,10 @@
         <td class="r">{{ kz.erwartete_eingaenge|euro }}</td>
         <td class="r">{{ kz.erwartete_ausgaenge|euro }}</td><td class="r">{{ kz.prognose|euro }}</td>
       {% else %}<td class="r leise">–</td><td class="r leise">–</td><td class="r leise">–</td>{% endif %}
-      <td class="r">{% if kz.gesamt %}{{ kz.quote }} % ({{ kz.bezahlt }} von {{ kz.gesamt }}){% else %}–{% endif %}</td>
+      <td class="r">{% if kz.gesamt %}<span class="quote"><progress value="{{ kz.bezahlt }}" max="{{ kz.gesamt }}" aria-hidden="true"></progress>{{ kz.quote }} % <small>({{ kz.bezahlt }} von {{ kz.gesamt }})</small></span>{% else %}–{% endif %}</td>
       <td>{{ badge(p.status) }}{% if p.status != 'offen' and kz.saldo %} <span class="badge">Restsaldo</span>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table></div>
-{% else %}<p class="leise">Keine Projekte.</p>{% endif %}
+{% else %}<p class="leer karte">{{ icon('folder-open') }} Keine Projekte.</p>{% endif %}

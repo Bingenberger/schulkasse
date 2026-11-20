@@ -1,11 +1,11 @@
 """Reports: overpayments, reminders, cash book (F3.6, F8.4, F8.5)."""
 from datetime import date
 
-from flask import Blueprint, flash, g, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from ..auswertung import erinnerungsliste, kassenbuch, kontenverteilung, ueberzahlungen
 from ..auth import ist_kasse, login_erforderlich, rolle
-from ..briefe import brief_config, html_zu_pdf, serienbrief
+from ..briefe import brief_config, erinnerungszettel, html_zu_pdf, serienbrief
 from ..buchung import BuchungsFehler
 from ..db import get_db, utcnow
 from ..geld import format_cent_csv
@@ -179,6 +179,97 @@ def erinnerungsbriefe():
         flash(str(exc), "fehler")
         return redirect(url_for("auswertungen.erinnerungen", projekt=projekt_id, stichtag=stichtag))
     return pdf_antwort(f"Erinnerungen_{stichtag}.pdf", pdf)
+
+
+@bp.route("/erinnerungen/zettel", methods=["POST"])
+@login_erforderlich
+def erinnerungszettel_pdf():
+    """Small reminder slips (4 or 8 per A4 page) for all items of the reminder list."""
+    db = get_db()
+    projekt_id = int_or_none(request.form.get("projekt"))
+    eigene = _eigene_projekte(db)
+    if projekt_id and eigene is not None and projekt_id not in eigene:
+        abort(403)
+    stichtag = datum_or_none(request.form.get("stichtag")) or date.today().isoformat()
+    rows = [r for rows in erinnerungsliste(db, stichtag, projekt_id, nur_projekt_ids=eigene).values() for r in rows]
+    gewaehlt = {int(i) for i in request.form.getlist("posten") if i.isdigit()}
+    if gewaehlt:
+        rows = [r for r in rows if r["id"] in gewaehlt]
+    try:
+        pdf, _ = erinnerungszettel(db, rows, uid(), pro_seite=int_or_none(request.form.get("pro_seite")) or 8,
+                                   mit_qr=request.form.get("qr", "1") == "1")
+    except BuchungsFehler as exc:
+        flash(str(exc), "fehler")
+        return redirect(url_for("auswertungen.erinnerungen", projekt=projekt_id or "", stichtag=stichtag))
+    return pdf_antwort(f"Erinnerungszettel_{stichtag}.pdf", pdf)
+
+
+@bp.route("/klassenlisten")
+@rolle("admin", "kasse")
+def klassenlisten():
+    """Payment status per child and class for the class teachers (PDF)."""
+    from ..klassenliste import klassen_zahlungsstatus, projekte_der_klasse
+    from ..stammdaten import aktives_schuljahr
+    db = get_db()
+    schuljahre = db.all("SELECT * FROM schuljahr ORDER BY beginn DESC")
+    sj = aktives_schuljahr(db)
+    sj_id = int_or_none(request.args.get("schuljahr")) or (sj["id"] if sj else (schuljahre[0]["id"] if schuljahre else None))
+    klassen = db.all("SELECT kl.*, (SELECT COUNT(*) FROM kind k WHERE k.klasse_id=kl.id AND k.aktiv=1) AS kinder"
+                     " FROM klasse kl WHERE kl.schuljahr_id=? ORDER BY length(kl.bezeichnung), kl.bezeichnung",
+                     (sj_id or 0,))
+    mit_abgeschlossenen = request.args.get("abgeschlossen") == "1"
+    klasse_id = int_or_none(request.args.get("klasse"))
+    projekt_ids = [int(i) for i in request.args.getlist("projekt") if i.isdigit()] or None
+    fmt = request.args.get("format")
+    if fmt == "pdf":
+        ids = [klasse_id] if klasse_id else [k["id"] for k in klassen if k["kinder"]]
+        listen = [x for x in (klassen_zahlungsstatus(db, i, projekt_ids if klasse_id else None, mit_abgeschlossenen)
+                              for i in ids) if x is not None]
+        if not listen:
+            flash("Keine Klasse mit Kindern gefunden.", "fehler")
+            return redirect(url_for("auswertungen.klassenlisten", schuljahr=sj_id or ""))
+        protokolliere(db, "export.klassenliste.pdf", "klasse", klasse_id,
+                      neu={"klassen": [x["klasse"]["bezeichnung"] for x in listen]})
+        quer = max(len(x["projekte"]) for x in listen) > 3
+        html = render_template("pdf/klassenliste.html", listen=listen, cfg=brief_config(), heute=date.today(),
+                               quer=quer)
+        name = f"Zahlungsstatus_Klasse_{listen[0]['klasse']['bezeichnung']}" if klasse_id else "Zahlungsstatus_alle_Klassen"
+        name = "".join(c if c.isalnum() or c in "-_" else "_" for c in name)
+        return pdf_antwort(f"{name}_{date.today().isoformat()}.pdf", html_zu_pdf(html))
+    vorschau = None
+    if klasse_id:
+        vorschau = klassen_zahlungsstatus(db, klasse_id, projekt_ids, mit_abgeschlossenen)
+        if vorschau is None:
+            abort(404)
+        vorschau["alle_projekte"] = projekte_der_klasse(db, klasse_id, mit_abgeschlossenen)
+    return render_template("klassenlisten.html", schuljahre=schuljahre, sj_id=sj_id, klassen=klassen,
+                           klasse_id=klasse_id, vorschau=vorschau, mit_abgeschlossenen=mit_abgeschlossenen,
+                           projekt_ids=projekt_ids)
+
+
+@bp.route("/jahresendmitteilung", methods=["GET", "POST"])
+@rolle("admin", "kasse")
+def jahresendmitteilung_view():
+    """§ 6 Abs. 2 / § 9 Richtlinie: balances of all accounts at 31 December, justified if not zero."""
+    from ..jahresende import jahresendmitteilung
+    db = get_db()
+    heute = date.today()
+    jahr = int_or_none(request.values.get("jahr")) or heute.year
+    if not 2000 <= jahr <= heute.year + 1:
+        jahr = heute.year
+    stichtag = date(jahr, 12, 31).isoformat()
+    v = jahresendmitteilung(db, stichtag)
+    if request.method == "POST":
+        bemerkung = (request.form.get("bemerkung") or "").strip()[:2000]
+        protokolliere(db, "export.jahresendmitteilung.pdf", "konto", None,
+                      neu={"stichtag": stichtag, "konten": {k["konto"]["bezeichnung"]: k["saldo"] for k in v["konten"]}})
+        cfg = brief_config()
+        from .kontoauszuege import _schulanschrift
+        html = render_template("pdf/jahresendmitteilung.html", v=v, cfg=cfg, heute=heute, bemerkung=bemerkung,
+                               schulanschrift=_schulanschrift(cfg), erzeugt=utcnow(), user=g.user)
+        return pdf_antwort(f"Jahresendmitteilung_{jahr}.pdf", html_zu_pdf(html))
+    jahre = list(range(heute.year + (1 if heute.month == 12 else 0), heute.year - 6, -1))
+    return render_template("jahresendmitteilung.html", v=v, jahr=jahr, jahre=jahre)
 
 
 @bp.route("/kassenbuch")

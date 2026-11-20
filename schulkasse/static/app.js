@@ -2,6 +2,23 @@
 // except the live remainder display in the split editor.
 "use strict";
 
+document.documentElement.classList.add("js");
+
+// Side navigation on small screens: slide-in panel opened by the menu button.
+document.addEventListener("click", (ev) => {
+  const schalter = ev.target.closest(".navi-schalter");
+  if (schalter) {
+    const offen = document.body.classList.toggle("navi-offen");
+    schalter.setAttribute("aria-expanded", offen ? "true" : "false");
+    return;
+  }
+  if (document.body.classList.contains("navi-offen") && !ev.target.closest("#navi")) {
+    document.body.classList.remove("navi-offen");
+    const s = document.querySelector(".navi-schalter");
+    if (s) s.setAttribute("aria-expanded", "false");
+  }
+});
+
 function parseCent(text) {
   let s = String(text || "").replace(/[€\s ]/g, "");
   if (!s) return 0;
@@ -49,6 +66,7 @@ document.addEventListener("click", (ev) => {
 });
 document.addEventListener("keydown", (ev) => {
   if (ev.key !== "Escape") return;
+  document.body.classList.remove("navi-offen");
   const offen = ev.target.closest && ev.target.closest("details.menu[open]");
   menuesSchliessen(null);
   if (offen) offen.querySelector("summary").focus();

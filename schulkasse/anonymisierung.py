@@ -75,6 +75,11 @@ def ausfuehren(db, frist_tage, benutzer_id, stichtag=None):
                        " verwendungszweck_roh=? WHERE id=?",
                        (PLATZHALTER, PLATZHALTER, _schwaerze(u["verwendungszweck"], namen),
                         _schwaerze(u["verwendungszweck_roh"], namen), u["id"]))
+            # Remarks for the monitoring list are free text and may contain names.
+            anmerkung = db.scalar("SELECT text FROM umsatz_anmerkung WHERE bankumsatz_id=?", (u["id"],))
+            if anmerkung:
+                db.execute("UPDATE umsatz_anmerkung SET text=? WHERE bankumsatz_id=?",
+                           (_schwaerze(anmerkung, namen), u["id"]))
         for fid in k["familien"]:
             db.execute("DELETE FROM zahler_iban WHERE familie_id=?", (fid,))
             db.execute("UPDATE familie SET bezeichnung=? WHERE id=?", (f"Gelöscht #{fid}", fid))

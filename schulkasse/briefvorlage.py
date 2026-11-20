@@ -22,6 +22,8 @@ FELDER = {
     "schulname": ("Name der Schule", "Oben links im Brief, falls kein Logo hinterlegt ist, und in der Fußzeile "
                   "der PDF-Listen.", 120, False),
     "briefkopf": ("Briefkopf", "Oben rechts: Anschrift, Telefon, E-Mail – eine Angabe pro Zeile.", 600, True),
+    "schulanschrift": ("Anschrift der Schule", "Straße, PLZ und Ort in einer Zeile – für den Kopf der "
+                       "Überwachungsliste. Leer: die ersten Zeilen des Briefkopfs.", 200, False),
     "ort": ("Ort vor dem Datum", "Zum Beispiel „Niederkassel“ – ergibt „Niederkassel, 19.09.2026“.", 60, False),
     "standardtext": ("Standardtext des Elternbriefs", "Vorlage für Projekte ohne eigenen Brieftext. Den Text je "
                      "Projekt passen Sie beim Erzeugen der Elternbriefe an.", 5000, True),

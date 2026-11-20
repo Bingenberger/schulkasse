@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Klassenlisten{% endblock %}
+{% block content %}
+<div class="kopfzeile">
+  <h1>{{ icon('chalkboard-teacher') }} Klassenlisten <small>Zahlungsstatus je Kind</small></h1>
+  {% if klassen %}
+  <div class="aktionen">
+    <a class="knopf" href="{{ url_for('auswertungen.klassenlisten', schuljahr=sj_id, abgeschlossen='1' if mit_abgeschlossenen else '', format='pdf') }}">{{ icon('file-pdf') }} Alle Klassen als PDF</a>
+  </div>
+  {% endif %}
+</div>
+<p class="leise einleitung">Eine Seite je Klasse für die Klassenleitung: Welche Kinder haben für welche Projekte schon bezahlt?
+  Kinder mit BuT-/Härtefallstatus und erlassene Beiträge erscheinen wie „kein Beitrag“ (–), damit niemand Rückschlüsse ziehen kann.</p>
+
+<form class="filter" method="get">
+  <div class="feld"><label for="schuljahr">Schuljahr</label>
+    <select id="schuljahr" name="schuljahr" data-autosubmit>{% for s in schuljahre %}<option value="{{ s.id }}" {% if s.id == sj_id %}selected{% endif %}>{{ s.bezeichnung }}</option>{% endfor %}</select></div>
+  <label class="check"><input type="checkbox" name="abgeschlossen" value="1" {% if mit_abgeschlossenen %}checked{% endif %}> auch abgeschlossene Projekte</label>
+  {% if klasse_id %}<input type="hidden" name="klasse" value="{{ klasse_id }}">{% endif %}
+  <button type="submit" class="zweit">Anzeigen</button>
+</form>
+
+<div class="kachelraster">
+  {% for k in klassen %}
+  <div class="kachel {{ 'aktiv' if k.id == klasse_id }}">
+    <a class="kachel-titel" href="{{ url_for('auswertungen.klassenlisten', schuljahr=sj_id, klasse=k.id, abgeschlossen='1' if mit_abgeschlossenen else '') }}">{{ icon('users-three') }} Klasse {{ k.bezeichnung }}</a>
+    <span class="leise">{{ k.kinder }} Kinder</span>
+    <a class="knopf klein zweit" href="{{ url_for('auswertungen.klassenlisten', schuljahr=sj_id, klasse=k.id, abgeschlossen='1' if mit_abgeschlossenen else '', format='pdf') }}">{{ icon('file-pdf') }} PDF</a>
+  </div>
+  {% else %}
+  <p class="leer">{{ icon('tray') }} Keine Klassen im gewählten Schuljahr.</p>
+  {% endfor %}
+</div>
+
+{% if vorschau %}
+<h2>Vorschau Klasse {{ vorschau.klasse.bezeichnung }}</h2>
+{% if vorschau.alle_projekte %}
+<form method="get" class="filter">
+  <input type="hidden" name="schuljahr" value="{{ sj_id }}"><input type="hidden" name="klasse" value="{{ klasse_id }}">
+  {% if mit_abgeschlossenen %}<input type="hidden" name="abgeschlossen" value="1">{% endif %}
+  <fieldset class="projektwahl"><legend>Projekte auf der Liste</legend>
+    {% for p in vorschau.alle_projekte %}
+    <label class="check"><input type="checkbox" name="projekt" value="{{ p.id }}" {% if not projekt_ids or p.id in projekt_ids %}checked{% endif %}> {{ p.bezeichnung }}{% if p.status != 'offen' %} <small>(abgeschlossen)</small>{% endif %}</label>
+    {% endfor %}
+  </fieldset>
+  <button type="submit" class="zweit">{{ icon('arrows-clockwise') }} Übernehmen</button>
+  <button type="submit" name="format" value="pdf">{{ icon('file-pdf') }} Diese Liste als PDF</button>
+</form>
+{% endif %}
+{% if not vorschau.projekte %}
+<p class="hinweis info">{{ icon('info') }} Für diese Klasse gibt es (in der Auswahl) keine Projekte mit Elternbeiträgen.</p>
+{% else %}
+<div class="tabelle-wrap"><table class="matrix">
+  <thead><tr><th>Name</th>{% for p in vorschau.projekte %}<th class="c">{{ p.bezeichnung }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for z in vorschau.zeilen %}
+  <tr><td>{{ z.kind.nachname }}, {{ z.kind.vorname }}</td>
+    {% for f in z.felder %}<td class="c">
+      {%- if f.status == 'bezahlt' %}<span class="badge b-erledigt">{{ icon('check') }} bezahlt</span>
+      {%- elif f.status == 'offen' %}<span class="badge b-offen">offen {{ f.offen|euro }}</span>
+      {%- elif f.status == 'teilweise' %}<span class="badge b-teilweise">noch {{ f.offen|euro }}</span>
+      {%- else %}<span class="leise">–</span>{% endif %}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><td>Bezahlt</td>{% for p in vorschau.projekte %}{% set sp = vorschau.spalten[p.id] %}<td class="c">{{ sp.bezahlt }} / {{ sp.gesamt }}</td>{% endfor %}</tr></tfoot>
+</table></div>
+{% endif %}
+{% endif %}
+{% endblock %}

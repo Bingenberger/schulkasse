@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from flask import Flask, g, render_template, request, session
-from markupsafe import Markup
+from markupsafe import Markup, escape
 
 from . import auth
 from .config import load_config
@@ -41,6 +41,12 @@ def _zeit(wert):
 
 def _euro(cent):
     return Markup(format_cent(cent).replace(" €", "&nbsp;€")) if cent is not None else ""
+
+
+def _icon(name, klasse=""):
+    """Phosphor icon (regular weight), served locally from static/vendor/phosphor."""
+    zusatz = f" {escape(klasse)}" if klasse else ""
+    return Markup(f'<i class="ph ph-{escape(name)}{zusatz}" aria-hidden="true"></i>')
 
 
 class TrustedProxyFix:
@@ -85,7 +91,7 @@ def create_app(overrides=None):
     app.teardown_appcontext(close_db)
     app.jinja_env.filters.update(euro=_euro, datum=_datum, zeit=_zeit, iban=iban_formatiert)
     # Globals (not context processors) so that imported macros can use them too.
-    app.jinja_env.globals.update(ROLLEN=auth.ROLLEN, format_cent=format_cent, csrf_token=auth.csrf_token)
+    app.jinja_env.globals.update(ROLLEN=auth.ROLLEN, format_cent=format_cent, csrf_token=auth.csrf_token, icon=_icon)
 
     @app.get("/health/live")
     def health_live():

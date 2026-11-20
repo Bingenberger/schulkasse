@@ -25,6 +25,8 @@
     <div class="feld"><label for="iban">IBAN</label><input id="iban" name="iban" class="mono" value="{{ k.iban|iban if k else '' }}" required></div>
     <div class="feld"><label for="bic">BIC</label><input id="bic" name="bic" class="mono" value="{{ k.bic or '' if k else '' }}"></div>
   </div>
+  <div class="feld"><label for="geldinstitut">Geldinstitut</label><input id="geldinstitut" name="geldinstitut" maxlength="120" value="{{ k.geldinstitut or '' if k else '' }}" placeholder="z. B. VR-Bank Rhein-Sieg">
+    <span class="hilfe">Steht im Kopf der Überwachungsliste (Richtlinie Schulgirokonten, Anlage 1).</span></div>
   <div class="zeile">
     <div class="feld"><label for="eroeffnungssaldo">Kontostand vor dem ersten importierten Umsatz</label>
       <input id="eroeffnungssaldo" name="eroeffnungssaldo" inputmode="decimal" value="{{ format_cent(k.eroeffnungssaldo_cent, False) if k and k.eroeffnungssaldo_cent is not none else '' }}">

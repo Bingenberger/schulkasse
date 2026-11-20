@@ -4,93 +4,99 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Schulkasse{% endblock %} · Schulkasse</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/phosphor/phosphor.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <script src="{{ url_for('static', filename='app.js') }}" defer></script>
 </head>
-<body>
+<body class="{{ 'mit-navi' if aktueller_user else 'ohne-navi' }}">
 <a class="skip" href="#inhalt">Zum Inhalt springen</a>
 {% if aktueller_user %}
+{%- macro navlink(endpoint, symbol, text) -%}
+{%- set aktiv = request.endpoint == endpoint -%}
+<li><a href="{{ url_for(endpoint) }}" class="{{ 'aktiv' if aktiv }}" {% if aktiv %}aria-current="page"{% endif %}>{{ icon(symbol) }}<span>{{ text }}</span></a></li>
+{%- endmacro -%}
 <header class="kopf">
-  <a class="marke" href="{{ url_for('start.dashboard') }}">Schulkasse</a>
-  <nav aria-label="Hauptnavigation">
-    <ul class="nav">
-      <li><a href="{{ url_for('start.dashboard') }}">Übersicht</a></li>
-      {% if ist_kasse %}
-      <li><a href="{{ url_for('umsaetze.arbeitsliste') }}">Zuordnung</a></li>
-      <li><a href="{{ url_for('umsaetze.liste') }}">Umsätze</a></li>
-      <li><a href="{{ url_for('umsaetze.import_start') }}">Import</a></li>
-      {% endif %}
-      <li><a href="{{ url_for('projekte.liste') }}">Projekte</a></li>
-      {% if ist_kasse %}
-      <li>
-        <details class="menu"><summary>Stammdaten</summary>
-          <ul>
-            <li><a href="{{ url_for('stammdaten.kinder') }}">Kinder</a></li>
-            <li><a href="{{ url_for('stammdaten.klassen') }}">Klassen</a></li>
-            <li><a href="{{ url_for('stammdaten.schuljahre') }}">Schuljahre</a></li>
-            <li><a href="{{ url_for('stammdaten.csv_import') }}">Klassenliste importieren</a></li>
-            <li><a href="{{ url_for('stammdaten.hochschreiben_view') }}">Schuljahreswechsel</a></li>
-          </ul>
-        </details>
-      </li>
-      <li>
-        <details class="menu"><summary>Auswertungen</summary>
-          <ul>
-            <li><a href="{{ url_for('auswertungen.kassenbuch_view') }}">Kassenbuch</a></li>
-            <li><a href="{{ url_for('auswertungen.monatsbericht_view') }}">Monatsbericht</a></li>
-            <li><a href="{{ url_for('auswertungen.erinnerungen') }}">Erinnerungsliste</a></li>
-            <li><a href="{{ url_for('auswertungen.ueberzahlungen_view') }}">Überzahlungen</a></li>
-            <li><a href="{{ url_for('auswertungen.kontenverteilung_view') }}">Geld je Projekt und Konto</a></li>
-            <li><a href="{{ url_for('umsaetze.ignoriert_liste') }}">Ignorierte Umsätze</a></li>
-          </ul>
-        </details>
-      </li>
-      <li>
-        <details class="menu"><summary>Verwaltung</summary>
-          <ul>
-            <li><a href="{{ url_for('verwaltung.protokoll') }}">Protokoll</a></li>
-            <li><a href="{{ url_for('verwaltung.briefvorlage') }}">Briefvorlage</a></li>
-            {% if aktueller_user.rolle == 'admin' %}
-            <li><a href="{{ url_for('verwaltung.benutzer') }}">Benutzer</a></li>
-            <li><a href="{{ url_for('verwaltung.konten') }}">Konten</a></li>
-            <li><a href="{{ url_for('verwaltung.anonymisierung_view') }}">Anonymisierung</a></li>
-            {% endif %}
-          </ul>
-        </details>
-      </li>
-      {% else %}
-      <li><a href="{{ url_for('auswertungen.erinnerungen') }}">Erinnerungen</a></li>
-      {% endif %}
-    </ul>
-  </nav>
+  <button type="button" class="navi-schalter" aria-controls="navi" aria-expanded="false" hidden>{{ icon('list') }}<span class="sr">Menü</span></button>
+  <a class="marke" href="{{ url_for('start.dashboard') }}"><span class="marke-symbol">{{ icon('piggy-bank') }}</span><span>Schulkasse</span></a>
   <div class="kopf-rechts">
     {% if ist_kasse %}
     <form class="suche" action="{{ url_for('start.suche') }}" method="get" role="search">
       <label for="q-kopf" class="sr">Suche</label>
-      <input id="q-kopf" type="search" name="q" placeholder="Suchen …" title="Name, Zahlcode, Verwendungszweck oder Betrag">
+      {{ icon('magnifying-glass') }}
+      <input id="q-kopf" type="search" name="q" placeholder="Suchen …" title="Name, Zahlcode, Verwendungszweck oder Betrag" value="{{ request.args.get('q', '') if request.endpoint == 'start.suche' }}">
     </form>
     {% endif %}
-    <details class="menu rechts"><summary>{{ aktueller_user.anzeigename }}</summary>
+    <details class="menu rechts"><summary><span class="avatar">{{ aktueller_user.anzeigename[:1]|upper }}</span><span class="nutzername">{{ aktueller_user.anzeigename }}</span></summary>
       <ul>
         <li class="menu-info">{{ ROLLEN[aktueller_user.rolle] }}</li>
-        <li><a href="{{ url_for('auth.passwort') }}">Passwort ändern</a></li>
-        <li><a href="{{ url_for('auth.sicherheit') }}">Zwei-Faktor-Sicherheit</a></li>
+        <li><a href="{{ url_for('auth.passwort') }}">{{ icon('key') }} Passwort ändern</a></li>
+        <li><a href="{{ url_for('auth.sicherheit') }}">{{ icon('shield-check') }} Zwei-Faktor-Sicherheit</a></li>
         <li>
           <form method="post" action="{{ url_for('auth.logout') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="link" type="submit">Abmelden</button>
+            <button class="link" type="submit">{{ icon('sign-out') }} Abmelden</button>
           </form>
         </li>
       </ul>
     </details>
   </div>
 </header>
+<nav id="navi" class="navi" aria-label="Hauptnavigation">
+  <ul>
+    {{ navlink('start.dashboard', 'house', 'Übersicht') }}
+    {% if ist_kasse %}
+    {{ navlink('umsaetze.arbeitsliste', 'arrows-left-right', 'Zuordnung') }}
+    {{ navlink('umsaetze.liste', 'list-bullets', 'Umsätze') }}
+    {{ navlink('umsaetze.import_start', 'upload-simple', 'Import') }}
+    {% endif %}
+    {{ navlink('projekte.liste', 'folders', 'Projekte') }}
+  </ul>
+  {% if ist_kasse %}
+  <p class="navi-gruppe">Nachweise</p>
+  <ul>
+    {{ navlink('kontoauszuege.uebersicht', 'files', 'Kontoauszüge & ÜL') }}
+    {{ navlink('auswertungen.kassenbuch_view', 'book-open-text', 'Kassenbuch') }}
+    {{ navlink('auswertungen.monatsbericht_view', 'calendar-check', 'Monatsbericht') }}
+    {{ navlink('auswertungen.jahresendmitteilung_view', 'confetti', 'Jahresendmitteilung') }}
+    {{ navlink('auswertungen.kontenverteilung_view', 'chart-pie-slice', 'Geld je Projekt und Konto') }}
+    {{ navlink('umsaetze.ignoriert_liste', 'eye-slash', 'Ignorierte Umsätze') }}
+  </ul>
+  <p class="navi-gruppe">Eltern &amp; Klassen</p>
+  <ul>
+    {{ navlink('auswertungen.erinnerungen', 'bell-ringing', 'Erinnerungsliste') }}
+    {{ navlink('auswertungen.klassenlisten', 'chalkboard-teacher', 'Klassenlisten') }}
+    {{ navlink('auswertungen.ueberzahlungen_view', 'coins', 'Überzahlungen') }}
+  </ul>
+  <p class="navi-gruppe">Stammdaten</p>
+  <ul>
+    {{ navlink('stammdaten.kinder', 'student', 'Kinder') }}
+    {{ navlink('stammdaten.klassen', 'users-three', 'Klassen') }}
+    {{ navlink('stammdaten.schuljahre', 'calendar-blank', 'Schuljahre') }}
+    {{ navlink('stammdaten.csv_import', 'file-arrow-up', 'Klassenliste importieren') }}
+    {{ navlink('stammdaten.hochschreiben_view', 'arrow-fat-lines-up', 'Schuljahreswechsel') }}
+  </ul>
+  <p class="navi-gruppe">Verwaltung</p>
+  <ul>
+    {{ navlink('verwaltung.protokoll', 'clock-counter-clockwise', 'Protokoll') }}
+    {{ navlink('verwaltung.briefvorlage', 'envelope-simple', 'Briefvorlage') }}
+    {% if aktueller_user.rolle == 'admin' %}
+    {{ navlink('verwaltung.benutzer', 'user-gear', 'Benutzer') }}
+    {{ navlink('verwaltung.konten', 'bank', 'Konten') }}
+    {{ navlink('verwaltung.anonymisierung_view', 'mask-happy', 'Anonymisierung') }}
+    {% endif %}
+  </ul>
+  {% else %}
+  <ul>
+    {{ navlink('auswertungen.erinnerungen', 'bell-ringing', 'Erinnerungen') }}
+  </ul>
+  {% endif %}
+</nav>
 {% endif %}
 <main id="inhalt" class="{% block main_class %}inhalt{% endblock %}">
   {% with meldungen = get_flashed_messages(with_categories=true) %}
     {% if meldungen %}
     <div class="meldungen" role="status">
-      {% for kat, text in meldungen %}<p class="meldung {{ kat }}">{{ text }}</p>{% endfor %}
+      {% for kat, text in meldungen %}<p class="meldung {{ kat }}">{{ icon('check-circle' if kat == 'ok' else ('warning-circle' if kat == 'fehler' else 'info')) }}<span>{{ text }}</span></p>{% endfor %}
     </div>
     {% endif %}
   {% endwith %}

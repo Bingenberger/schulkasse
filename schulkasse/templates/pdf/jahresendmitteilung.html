@@ -1,0 +1,92 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Jahresendmitteilung {{ v.stichtag[:4] }}{% endblock %}
+{% block body %}
+<style>
+  body { font-size: 9.5pt; line-height: 1.4; }
+  .kopf { overflow: hidden; border-bottom: .6pt solid #333; padding-bottom: 3mm; margin-bottom: 6mm; }
+  .kopf img { max-height: 18mm; max-width: 50mm; float: left; }
+  .kopf .absender { float: right; text-align: right; white-space: pre-line; font-size: 8.5pt; }
+  .an { margin-bottom: 6mm; }
+  .datum { text-align: right; margin-bottom: 5mm; }
+  h1 { font-size: 13pt; margin-bottom: 1mm; }
+  .unter { color: #444; margin-bottom: 5mm; }
+  table.uebersicht th, table.uebersicht td, table.zus th, table.zus td { border: .4pt solid #999; }
+  .vorlaeufig { border: 1pt solid #8a5300; background: #fff6e5; padding: 2mm 3mm; margin: 3mm 0; }
+  .konto { page-break-inside: avoid; margin-top: 5mm; }
+  .konto h2 { font-size: 10.5pt; margin-bottom: 1.5mm; }
+  .ok { color: #1e6b3a; }
+  em { color: #444; }
+  .bemerkung { white-space: pre-line; border-left: 1.2pt solid #999; padding-left: 3mm; margin-top: 4mm; }
+  .bestaetigung { margin-top: 8mm; page-break-inside: avoid; }
+  table.unterschriften { margin-top: 16mm; width: 100%; border-collapse: separate; border-spacing: 8mm 0; }
+  table.unterschriften td { border: 0; border-top: .6pt solid #111; padding-top: 1mm; font-size: 8pt; width: 50%; }
+  .anlagen { margin-top: 8mm; font-size: 8.5pt; }
+</style>
+<div class="kopf">
+  {% if cfg.logo_uri %}<img src="{{ cfg.logo_uri }}" alt="">{% else %}<strong>{{ cfg.schulname }}</strong>{% endif %}
+  <div class="absender">{{ cfg.schulname }}{% if schulanschrift %}
+{{ schulanschrift }}{% endif %}</div>
+</div>
+<div class="an">An die<br>Stadt Niederkassel<br>– Schulverwaltung –<br>– Fachbereich 2 – Finanzen –</div>
+<div class="datum">{{ cfg.ort }}, {{ heute.strftime('%d.%m.%Y') }}</div>
+
+<h1>Jahresendmitteilung: Bestände der Schulgirokonten zum {{ v.stichtag|datum }}</h1>
+<div class="unter">Bescheinigung nach § 9 Abs. 1 und 2 sowie Begründung der Bestände nach § 6 Abs. 2 der Richtlinie
+  über die Führung von Schulgirokonten</div>
+
+<p>Hiermit teilen wir die Bestände sämtlicher Schulgirokonten der Schule zum {{ v.stichtag|datum }} mit:</p>
+<table class="uebersicht">
+  <thead><tr><th>Bezeichnung des Kontos</th><th>IBAN</th><th>Geldinstitut</th><th class="r">Kontostand {{ v.stichtag|datum }}</th></tr></thead>
+  <tbody>
+  {% for k in v.konten %}
+  <tr><td>{{ k.konto.bezeichnung }}</td><td>{{ k.konto.iban|iban }}</td><td>{{ k.konto.geldinstitut or '' }}</td>
+    <td class="r"><b>{{ k.saldo|euro }}</b>{% if k.vorlaeufig %} *{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><td colspan="3">Summe</td><td class="r">{{ v.gesamt|euro }}</td></tr></tfoot>
+</table>
+{% if v.vorlaeufig %}
+<div class="vorlaeufig">* Vorläufiger Stand: Für dieses Konto lagen bei Erstellung nur Umsätze bis
+  {% for k in v.konten if k.vorlaeufig %}{{ k.letzter_import|datum if k.letzter_import else '–' }} ({{ k.konto.bezeichnung }}){% if not loop.last %}, {% endif %}{% endfor %}
+  vor. Bis zum Stichtag erwartete Zahlungen sind nicht enthalten; der endgültige Stand ergibt sich aus dem Kontoauszug zum {{ v.stichtag|datum }}.</div>
+{% endif %}
+
+<h2>Begründung der Bestände (§ 6 Abs. 2)</h2>
+{% if not v.mit_bestand %}
+<p class="ok">Alle Konten weisen zum Stichtag keinen Bestand aus. Eine Begründung ist nicht erforderlich.</p>
+{% endif %}
+{% for k in v.konten %}
+<div class="konto">
+  <h2>{{ k.konto.bezeichnung }}: {{ k.saldo|euro }}</h2>
+  {% if not k.saldo %}
+  <p class="ok">Kein Bestand.</p>
+  {% else %}
+  <p>Der Bestand setzt sich aus zweckgebundenen Mitteln folgender Vorhaben zusammen; er wird für deren Abwicklung
+    im neuen Jahr benötigt bzw. ist als Restmittel abgeschlossener Vorhaben ausgewiesen:</p>
+  <table class="zus">
+    <thead><tr><th>Projekt / Vorhaben</th><th>Status</th><th class="r">Betrag</th></tr></thead>
+    <tbody>
+    {% for p in k.projekte %}
+    <tr><td>{{ p.bezeichnung }}</td>
+      <td>{% if p.status == 'offen' %}laufend{% else %}abgeschlossen{% if p.abgeschlossen_am %} am {{ p.abgeschlossen_am|datum }}{% endif %}, Restmittel{% endif %}</td>
+      <td class="r">{{ p.betrag|euro }}</td></tr>
+    {% endfor %}
+    {% for text, betrag in k.sonstige %}
+    <tr><td colspan="2"><em>{{ text }}</em></td><td class="r">{{ betrag|euro }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td colspan="2">Kontostand</td><td class="r">{{ k.saldo|euro }}</td></tr></tfoot>
+  </table>
+  {% endif %}
+</div>
+{% endfor %}
+{% if bemerkung %}<div class="bemerkung"><b>Ergänzende Begründung:</b>
+{{ bemerkung }}</div>{% endif %}
+
+<div class="bestaetigung">
+  <p>Die vorstehenden Kontostände werden hiermit verbindlich bestätigt. Die Bestände wurden von der Schulleitung
+    geprüft und sind sachlich und rechnerisch richtig.</p>
+  <table class="unterschriften"><tr><td>Ort, Datum</td><td>Unterschrift Schulleitung</td></tr></table>
+</div>
+<div class="anlagen"><b>Anlagen:</b> Kontoauszüge zum {{ v.stichtag|datum }} für jedes der aufgeführten Konten (§ 9 Abs. 2)</div>
+{% endblock %}

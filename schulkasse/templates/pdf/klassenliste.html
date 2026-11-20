@@ -1,0 +1,55 @@
+{% extends "pdf/_basis.html" %}
+{% block title %}Zahlungsstatus Klassen{% endblock %}
+{% block orientierung %}{{ 'landscape' if quer else 'portrait' }}{% endblock %}
+{% block body %}
+<style>
+  .klasse { page-break-after: always; }
+  .klasse:last-child { page-break-after: auto; }
+  .vertraulich { float: right; font-size: 7pt; color: #a4262c; border: .6pt solid #a4262c; padding: .6mm 2mm; border-radius: 1mm; }
+  table.matrix th, table.matrix td { border: .4pt solid #999; text-align: center; vertical-align: middle; }
+  table.matrix th.name, table.matrix td.name { text-align: left; }
+  table.matrix th { font-size: 7.5pt; }
+  table.matrix th small { display: block; font-weight: normal; color: #555; }
+  table.matrix tbody tr:nth-child(even) td { background: #f6f7f6; }
+  .s-bezahlt { color: #1e6b3a; font-weight: bold; }
+  .s-offen { color: #a4262c; font-weight: bold; }
+  .s-teilweise { color: #8a5300; font-weight: bold; }
+  .s-keiner { color: #999; }
+  .legende { font-size: 7.5pt; color: #444; margin-top: 3mm; }
+  .unterschrift { margin-top: 8mm; font-size: 8pt; }
+</style>
+{% for kl in listen %}
+<section class="klasse">
+  <span class="vertraulich">Vertraulich – nur für die Klassenleitung</span>
+  <h1>Zahlungsstatus Klasse {{ kl.klasse.bezeichnung }}</h1>
+  <div class="meta">{{ cfg.schulname }} · Schuljahr {{ kl.klasse.schuljahr }} · Stand {{ heute.strftime('%d.%m.%Y') }}
+    · {{ kl.zeilen|length }} Kinder{% if kl.projekte %} · {{ kl.offen_kinder }} mit offenem Betrag{% endif %}</div>
+  {% if not kl.projekte %}
+  <p>Für diese Klasse gibt es keine Projekte mit Elternbeiträgen.</p>
+  {% else %}
+  <table class="matrix">
+    <thead><tr><th class="name">Name</th>
+      {% for p in kl.projekte %}<th>{{ p.bezeichnung }}{% if p.faellig_am %}<small>fällig {{ p.faellig_am|datum }}</small>{% endif %}</th>{% endfor %}
+      {% if kl.projekte|length > 1 %}<th>Offen gesamt</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for z in kl.zeilen %}
+      <tr><td class="name">{{ z.kind.nachname }}, {{ z.kind.vorname }}</td>
+        {% for f in z.felder %}<td class="s-{{ f.status }}">
+          {%- if f.status == 'bezahlt' %}✓ bezahlt
+          {%- elif f.status == 'offen' %}offen {{ f.offen|euro }}
+          {%- elif f.status == 'teilweise' %}noch {{ f.offen|euro }}
+          {%- else %}–{% endif %}</td>{% endfor %}
+        {% if kl.projekte|length > 1 %}<td class="{{ 's-offen' if z.offen else 's-bezahlt' }}">{{ z.offen|euro if z.offen else '✓' }}</td>{% endif %}</tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr><td class="name">Bezahlt</td>
+      {% for p in kl.projekte %}{% set sp = kl.spalten[p.id] %}<td>{{ sp.bezahlt }} von {{ sp.gesamt }}</td>{% endfor %}
+      {% if kl.projekte|length > 1 %}<td></td>{% endif %}</tr></tfoot>
+  </table>
+  <p class="legende">✓ bezahlt = Betrag vollständig eingegangen · offen = noch keine Zahlung · noch … = Restbetrag nach Teilzahlung ·
+    – = kein Beitrag zu zahlen. Zahlungen der letzten Tage sind eventuell noch nicht verbucht.
+    Bitte die Liste nicht aushängen oder an Dritte weitergeben.</p>
+  {% endif %}
+</section>
+{% endfor %}
+{% endblock %}
